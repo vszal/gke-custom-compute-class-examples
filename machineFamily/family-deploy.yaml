@@ -14,7 +14,7 @@ spec:
         app: test-workload
     spec:
       nodeSelector:
-        cloud.google.com/compute-class: prefer-n2
+        cloud.google.com/compute-class: prefer-family
       containers:
       - name: test
         image: registry.k8s.io/pause:latest
