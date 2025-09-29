@@ -1,12 +1,12 @@
 apiVersion: cloud.google.com/v1
 kind: ComputeClass
 metadata:
-  name: prefer-n2
+  name: prefer-family
 spec:
   priorities:
-  - machineFamily: n2
+  - machineFamily: c4
     minCores: 4
-  - machineFamily: n2d
+  - machineFamily: c3d
     minCores: 4
   autoscalingPolicy:
     consolidationDelayMinutes : 1
