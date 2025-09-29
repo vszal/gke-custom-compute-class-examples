@@ -15,9 +15,8 @@ spec:
       bootDiskSize: 250
       localSSDCount: 1
   autoscalingPolicy:
-    consolidationDelayMinutes : 3
+    consolidationDelayMinutes : 1
   activeMigration:
     optimizeRulePriority: true
   nodePoolAutoCreation:
     enabled: true
-  whenUnsatisfiable: ScaleUpAnyway

@@ -1,0 +1,20 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ccc-kueue-job
+  namespace: default
+spec:
+  parallelism: 1
+  completions: 1
+  template:
+    spec:
+      containers:
+      - name: container
+        image: busybox
+        args: ["sleep", "5"]
+        imagePullPolicy: Always
+        resources:
+          limits:
+            nvidia.com/gpu: "1"
+            memory: 200Mi
+      restartPolicy: Never
