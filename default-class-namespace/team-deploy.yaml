@@ -1,0 +1,26 @@
+# Note what's MISSING: no cloud.google.com/compute-class nodeSelector. This pod
+# inherits the namespace's default class (team-default) because the team-a
+# namespace is labelled for it. That's the whole demonstration — a plain manifest
+# lands on the right class without selecting it.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: team-app
+  namespace: team-a
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: team-app
+  template:
+    metadata:
+      labels:
+        app: team-app
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.27
+        resources:
+          requests:
+            cpu: "1"
+            memory: 512Mi

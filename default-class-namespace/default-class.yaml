@@ -1,0 +1,23 @@
+# A plain general-purpose ComputeClass. Nothing exotic here on purpose — the point
+# of this example is the BINDING mechanism (a namespace label), not the rule.
+#
+# WHY: platform teams don't want every team to hand-edit a nodeSelector into every
+# workload. Set this class as the default for a namespace and any pod that doesn't
+# already select a class inherits it. Teams ship plain manifests; the class is
+# applied for them.
+#
+# whenUnsatisfiable: ScaleUpAnyway — a namespace default is a baseline, not a hard
+# constraint; falling back to a default pool beats leaving pods Pending.
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: team-default
+spec:
+  nodePoolAutoCreation:
+    enabled: true
+  priorities:
+  - machineFamily: c4   # current-gen general purpose
+    minCores: 4
+  - machineFamily: n4   # fallback
+    minCores: 4
+  whenUnsatisfiable: ScaleUpAnyway
