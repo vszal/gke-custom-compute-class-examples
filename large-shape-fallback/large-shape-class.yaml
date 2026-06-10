@@ -1,0 +1,37 @@
+# ComputeClass demonstrating LARGE-SHAPE OBTAINABILITY with smaller-core fallback.
+#
+# PROBLEM: machine shapes larger than 32 vCPU are scarcer than smaller ones
+# (thinner capacity pools, more "out of resources" stockouts). A ComputeClass
+# pinned to a large shape ONLY risks pods stuck Pending when that shape is
+# exhausted in your zones.
+#
+# SOLUTION: add progressively SMALLER fallback shapes with wider availability,
+# so scheduling still succeeds when the large shape stocks out.
+#
+# CRITICAL CAVEAT: this only helps HORIZONTALLY-SCALABLE workloads made of many
+# SMALL pods. node auto-creation sizes a node to fit the Pod's REQUESTS, so a
+# single pod that itself requests >32 vCPU cannot shrink onto a smaller node.
+# For big single pods, vary ZONE or FAMILY instead of shape.
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: large-shape-fallback
+spec:
+  nodePoolAutoCreation:
+    enabled: true
+  priorityDefaults:
+    location:
+      zones: ['us-central1-a', 'us-central1-b', 'us-central1-c']
+      locationPolicy: ANY
+  priorities:
+  # Priority 1 — preferred LARGE shape (48 vCPU).
+  # Best bin-packing (fewer, denser nodes) for many small pods, but scarcest.
+  - machineType: c4-standard-48   # IMPORTANT: Align the machineType family with your existing CUDs/Reservations
+    spot: false
+  # Priority 2 — first fallback, MEDIUM shape (16 vCPU), wider availability.
+  - machineType: c4-standard-16
+    spot: false
+  # Priority 3 — second fallback, SMALL shape (8 vCPU), most abundant safety net.
+  - machineType: c4-standard-8
+    spot: false
+  whenUnsatisfiable: ScaleUpAnyway

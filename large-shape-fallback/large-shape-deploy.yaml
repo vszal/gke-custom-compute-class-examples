@@ -1,0 +1,36 @@
+# Horizontally-scalable workload that benefits from large-shape fallback:
+# 30 small, independent pods.
+#
+# KEY INSIGHT: each pod requests only 2 vCPU / 4 Gi — far smaller than any shape
+# in the ComputeClass (8, 16, or 48 vCPU). That's exactly why smaller-shape
+# fallback works: when the 48 stocks out, these pods still fit on a 16 or an 8.
+#
+# Approximate packing (minus system overhead):
+#   c4-standard-48: ~22 pods/node   -> ~2 nodes for 30 pods
+#   c4-standard-16: ~7  pods/node   -> ~5 nodes
+#   c4-standard-8:  ~3  pods/node   -> ~10 nodes
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: batch-workers
+  namespace: default
+spec:
+  replicas: 30
+  selector:
+    matchLabels:
+      app: batch-worker
+  template:
+    metadata:
+      labels:
+        app: batch-worker
+    spec:
+      nodeSelector:
+        cloud.google.com/compute-class: large-shape-fallback
+      containers:
+      - name: worker
+        image: registry.k8s.io/pause:latest
+        # Deliberately SMALL requests so a pod fits on the 8-, 16-, or 48-core shape.
+        resources:
+          requests:
+            cpu: 2
+            memory: 4Gi

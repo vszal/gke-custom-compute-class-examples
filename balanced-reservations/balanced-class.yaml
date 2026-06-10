@@ -1,0 +1,59 @@
+# ComputeClass: BALANCED node scale-up across separate ZONAL reservations.
+#
+# "Balanced" has TWO independent layers — this file is only the FIRST:
+#   1. INFRASTRUCTURE / NODE layer (here): locationPolicy: BALANCED tells the
+#      autoscaler to spread NODE scale-up roughly evenly across zones
+#      (best-effort — it still scales a zone short on capacity; `ANY` would
+#      instead pack a single zone for utilization).
+#   2. WORKLOAD / POD layer (in balanced-deploy.yaml): BALANCED does NOT
+#      guarantee even POD placement. That needs pod topologySpreadConstraints.
+# Pick the layer(s) you actually want; for true HA you usually want both.
+#
+# SCHEMA TRAP: location.zones CANNOT be combined with reservations.affinity:
+# Specific (GKE error: "location config with specific reservations enabled").
+# So zones come ONLY from reservations.specific[].zones, and the location block
+# carries locationPolicy ONLY.
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: balanced-reserved
+spec:
+  nodePoolAutoCreation:
+    enabled: true
+  priorities:
+  # --- Priority 1: preferred shape, balanced across 3 zonal reservations ---
+  # ONE priority per machine SIZE that names ALL THREE zonal reservations.
+  # Do NOT split this into one priority per zone: priorities are evaluated
+  # sequentially, so per-zone priorities would drain zone-a before touching b/c.
+  - machineType: n4-standard-32   # IMPORTANT: Align machineType with your existing CUDs/Reservations (n4-standard-32 = 32 vCPU / 128 GB)
+    spot: false
+    location:
+      locationPolicy: BALANCED      # even NODE spread; NO zones here (they come from the reservations below)
+    reservations:
+      affinity: Specific            # NEVER AnyBestEffort — it falls back to On-Demand at the GCE layer and silently skips lower priorities
+      specific:
+      - name: <RESERVATION-32-ZONE-A>   # <-- replace with your reservation name in us-central1-a
+        zones: ['us-central1-a']
+      - name: <RESERVATION-32-ZONE-B>   # <-- replace with your reservation name in us-central1-b
+        zones: ['us-central1-b']
+      - name: <RESERVATION-32-ZONE-C>   # <-- replace with your reservation name in us-central1-c
+        zones: ['us-central1-c']
+
+  # --- Priority 2: smaller fallback shape, same balanced 3-zone pattern ---
+  - machineType: n4-standard-16   # n4-standard-16 = 16 vCPU / 64 GB
+    spot: false
+    location:
+      locationPolicy: BALANCED
+    reservations:
+      affinity: Specific
+      specific:
+      - name: <RESERVATION-16-ZONE-A>
+        zones: ['us-central1-a']
+      - name: <RESERVATION-16-ZONE-B>
+        zones: ['us-central1-b']
+      - name: <RESERVATION-16-ZONE-C>
+        zones: ['us-central1-c']
+
+  # Both reservation tiers exhausted -> leave pods Pending rather than spill to
+  # unreserved On-Demand. Switch to ScaleUpAnyway if you'd rather burst off-reservation.
+  whenUnsatisfiable: DoNotScaleUp

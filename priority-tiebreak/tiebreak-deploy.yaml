@@ -1,0 +1,30 @@
+# Stateless web tier that consumes the web-tier-tiebreak ComputeClass.
+# 12 interchangeable replicas -> a good fit for cost-based tie-breaking,
+# since any of the tier-1 families can host them.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-tier
+  namespace: default
+spec:
+  replicas: 12
+  selector:
+    matchLabels:
+      app: web-tier
+  template:
+    metadata:
+      labels:
+        app: web-tier
+    spec:
+      # Bind the pods to the ComputeClass. node pool auto-creation handles the
+      # matching taint/toleration automatically for this selector.
+      nodeSelector:
+        cloud.google.com/compute-class: web-tier-tiebreak
+      containers:
+      - name: pause
+        image: registry.k8s.io/pause:latest
+        # Node sizing is driven by Pod REQUESTS (not limits).
+        resources:
+          requests:
+            cpu: 1
+            memory: 2Gi

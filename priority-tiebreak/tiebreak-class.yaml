@@ -1,0 +1,65 @@
+# ComputeClass: cost-based tie-breaking with priorityScore
+#
+# Use this when several machine families are interchangeable for a stateless
+# workload and you'd rather GKE pick the cheapest-available one than hard-code
+# a family ordering that rots as Spot/on-demand prices shift.
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: web-tier-tiebreak
+spec:
+  nodePoolAutoCreation:
+    enabled: true
+
+  # Defaults applied to every priority that doesn't set its own location.
+  priorityDefaults:
+    location:
+      zones: ['us-central1-a', 'us-central1-b', 'us-central1-c']
+      locationPolicy: ANY
+
+  # priorityScore semantics:
+  #   - Integer 1-1000; HIGHER = more preferred.
+  #   - Evaluation is driven by SCORE, not by declaration order. Rules that
+  #     share a score form one "tier" and are evaluated together.
+  #   - Within a tier the tie is broken by LOWEST UNIT COST, so GKE provisions
+  #     whichever family in that tier is cheapest AND available right now.
+  #   - MAXIMUM 3 rules may share the same score.
+  #   - All-or-nothing: if ANY rule sets priorityScore, EVERY rule must.
+  #
+  # Tiers below: three Gen-4 families on top, two Gen-2 fallbacks, e2 floor.
+  priorities:
+  # --- Tier 1 (score 100): three equivalent Gen-4 On-Demand families ---
+  - machineFamily: c4d   # IMPORTANT: Align machineFamily with your existing CUDs/Reservations
+    minCores: 8
+    spot: false
+    priorityScore: 100
+  - machineFamily: c4
+    minCores: 8
+    spot: false
+    priorityScore: 100
+  - machineFamily: n4
+    minCores: 8
+    spot: false
+    priorityScore: 100
+
+  # --- Tier 2 (score 50): two Gen-2 fallbacks with broader availability ---
+  - machineFamily: n2
+    minCores: 8
+    spot: false
+    priorityScore: 50
+  - machineFamily: n2d
+    minCores: 8
+    spot: false
+    priorityScore: 50
+
+  # --- Tier 3 (score 10): e2 floor with a wider zone net to guarantee execution ---
+  - machineFamily: e2
+    minCores: 8
+    spot: false
+    location:
+      zones: ['us-central1-a', 'us-central1-b', 'us-central1-c', 'us-central1-f']
+      locationPolicy: ANY
+    priorityScore: 10
+
+  # All tiers exhausted -> still scale up rather than leave pods Pending.
+  whenUnsatisfiable: ScaleUpAnyway

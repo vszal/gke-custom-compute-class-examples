@@ -1,0 +1,32 @@
+# ComputeClass: a dedicated CHEAP pool for non-DaemonSet kube-system pods.
+#
+# PROBLEM: kube-system pods (metrics-server, coredns, konnectivity-agent, custom
+# operators) often have no PodDisruptionBudget and may carry
+# cluster-autoscaler.kubernetes.io/safe-to-evict: "false". They land on whatever
+# node the scheduler picks first — frequently an expensive GPU/TPU/large node —
+# and then pin it forever, blocking consolidation. Autoscaler logs show:
+#   noScaleDown ... reason messageId = "no.scale.down.node.pod.kube.system.unmovable"
+#
+# FIX: route non-DaemonSet system pods to this cheap n4 class. Expensive nodes
+# then host only real workloads and can drain freely.
+#
+# NOTE: there is NO Deployment to apply for this example. The binding is a LABEL
+# on the kube-system namespace (see README) — the -non-daemonset variant leaves
+# DaemonSets alone, since they must run on every node anyway.
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: system-pool
+spec:
+  nodePoolAutoCreation:
+    enabled: true
+  # ScaleUpAnyway is intentional: NEVER let priority exhaustion leave a
+  # kube-system pod Pending — that can cascade into a cluster-wide outage.
+  whenUnsatisfiable: ScaleUpAnyway
+  priorities:
+  - machineFamily: n4   # IMPORTANT: Align machineFamily with your existing CUDs/Reservations
+    minCores: 4         # n4-standard-4 (4 vCPU / 16 GB) comfortably holds typical system pods
+    spot: false         # never put system pods on Spot — preemption risks control-plane-adjacent disruption
+    location:
+      zones: ['us-central1-a', 'us-central1-b', 'us-central1-c']
+      locationPolicy: BALANCED   # spread NODE scale-up across zones so singleton system pods aren't all in one zone

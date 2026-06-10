@@ -1,0 +1,47 @@
+# Workload for the balanced-reserved ComputeClass.
+#
+# This file supplies the SECOND layer of "balanced": even POD distribution.
+# The ComputeClass spreads NODES (locationPolicy: BALANCED); the
+# topologySpreadConstraints below spread PODS. The two layers are independent —
+# BALANCED nodes alone will NOT keep pods evenly distributed.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: balanced-app
+  namespace: default
+spec:
+  replicas: 9
+  selector:
+    matchLabels:
+      app: balanced-app
+  template:
+    metadata:
+      labels:
+        app: balanced-app
+    spec:
+      # Node layer: bind to the ComputeClass (BALANCED node spread lives there).
+      nodeSelector:
+        cloud.google.com/compute-class: balanced-reserved
+
+      # Pod layer: force even spread across zones. With maxSkew: 1 and 9 pods
+      # over 3 zones, no zone may hold more than one pod above any other -> 3/3/3.
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        # DoNotSchedule is REQUIRED to actually enforce the spread. The default,
+        # ScheduleAnyway, treats the constraint as a soft hint and the scheduler
+        # may still pack a single zone.
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: balanced-app
+
+      containers:
+      - name: app
+        image: registry.k8s.io/pause:latest
+        # Node auto-creation sizes nodes from Pod REQUESTS. 4 vCPU / 8 GiB pods
+        # fit comfortably on the n4-standard-32 (32 vCPU) reservation shape.
+        resources:
+          requests:
+            cpu: 4
+            memory: 8Gi

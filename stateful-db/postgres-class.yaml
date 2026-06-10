@@ -1,0 +1,65 @@
+# ComputeClass for a STATEFUL PostgreSQL primary.
+#
+# Design rules baked in here:
+#   * ZONE-PINNED to us-central1-a. A stateful primary's data lives on a zonal
+#     Hyperdisk PersistentVolume, and a zonal disk can only attach to a node in
+#     its OWN zone. Pinning every priority to one zone keeps node and PV together.
+#   * RESERVATION FIRST (Specific affinity), then On-Demand fallbacks in the SAME
+#     zone. NO Spot — a primary database must not be preemptible.
+#   * ALL Gen-4 families on Hyperdisk. CRITICAL: never mix Gen-2 (pd-*) and Gen-4
+#     (hyperdisk-*) disks across priorities[] — mixing causes PV attach failures.
+#   * Kernel sysctls applied to every priority via priorityDefaults.
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: postgres-primary
+spec:
+  nodePoolAutoCreation:
+    enabled: true
+
+  priorityDefaults:
+    nodeSystemConfig:
+      linuxNodeConfig:
+        sysctls:
+          net.core.somaxconn: 1024     # deeper listen-accept queue for many DB clients
+          vm.overcommit_memory: 2      # strict overcommit — fail allocations early instead of risking the OOM killer mid-query
+
+  priorities:
+  # --- 1. Specific reservation — pre-paid, highest obtainability, no preemption ---
+  # NOTE: no location block here. location.zones CANNOT combine with
+  # affinity: Specific (GKE error: "location config with specific reservations
+  # enabled"). The zone comes from reservations.specific[].zones below.
+  - machineFamily: c4d   # IMPORTANT: Align machineFamily with your existing CUDs/Reservations
+    minCores: 16
+    minMemoryGb: 128     # high-memory profile (8 GB/vCPU) for a primary DB
+    spot: false
+    reservations:
+      affinity: Specific   # never AnyBestEffort — it would fall back to On-Demand at the GCE layer and skip the priorities below
+      specific:
+      - name: postgres-primary-reservation   # <-- your reservation name
+        zones: ['us-central1-a']             # zone scope lives here
+    storage:
+      bootDiskType: hyperdisk-balanced
+      bootDiskSize: 100
+
+  # --- 2. On-Demand n4d fallback, SAME zone (so the zonal PV can still attach) ---
+  - machineFamily: n4d
+    minCores: 16
+    minMemoryGb: 128
+    spot: false
+    location:
+      zones: ['us-central1-a']
+    storage:
+      bootDiskType: hyperdisk-balanced   # Gen-4, matches priority 1 — do NOT drop to a pd-* disk here
+      bootDiskSize: 100
+
+  # --- 3. On-Demand c4 (Intel) fallback, SAME zone ---
+  - machineFamily: c4
+    minCores: 16
+    minMemoryGb: 128
+    spot: false
+    location:
+      zones: ['us-central1-a']
+    storage:
+      bootDiskType: hyperdisk-balanced
+      bootDiskSize: 100

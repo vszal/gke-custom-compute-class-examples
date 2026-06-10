@@ -1,0 +1,58 @@
+# PostgreSQL primary StatefulSet bound to the postgres-primary ComputeClass.
+#
+# The data volume (volumeClaimTemplates) requests a hyperdisk-balanced PVC so the
+# zonal Hyperdisk PV matches the Gen-4 node the ComputeClass provisions. Keep the
+# disk generation consistent: Hyperdisk PV on a Gen-4 node — never a pd-* class.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: default
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+      role: primary
+  template:
+    metadata:
+      labels:
+        app: postgres
+        role: primary
+    spec:
+      # Bind to the ComputeClass — node auto-creation handles the matching taint/toleration.
+      nodeSelector:
+        cloud.google.com/compute-class: postgres-primary
+      containers:
+      - name: postgres
+        image: postgres:16
+        env:
+        - name: POSTGRES_PASSWORD
+          value: changeme           # demo only — use a Secret (secretKeyRef) in production
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata   # subdir of the mount, required by the postgres image
+        resources:
+          requests:
+            cpu: 8                   # node auto-creation sizes the node from these requests
+            memory: 64Gi
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        readinessProbe:
+          exec:
+            command: ["pg_isready", "-U", "postgres"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      # CRITICAL: hyperdisk-balanced keeps the data PV on the SAME disk generation
+      # as the node's Gen-4 boot disk. Never use a pd-* class here — mixing Gen-2
+      # (pd) and Gen-4 (hyperdisk) leads to volume attach failures.
+      storageClassName: hyperdisk-balanced
+      resources:
+        requests:
+          storage: 100Gi
