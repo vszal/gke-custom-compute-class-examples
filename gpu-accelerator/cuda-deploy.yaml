@@ -4,7 +4,12 @@ metadata:
   name: cuda-pod
 spec:
   nodeSelector:
-    cloud.google.com/compute-class: prefer-l4-spot
+    cloud.google.com/compute-class: l4-inference
+  # GPU nodes are auto-tainted nvidia.com/gpu:NoSchedule — tolerate it or the Pod
+  # stays Pending (this is separate from the compute-class auto-toleration).
+  tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
   containers:
   - name: l4-container-1
     image: nvidia/cuda:11.0.3-runtime-ubuntu20.04

@@ -50,7 +50,13 @@ spec:
         emptyDir:
           medium: Memory
       nodeSelector:
-        cloud.google.com/compute-class: prefer-l4-spot
+        cloud.google.com/compute-class: l4-inference
+      # GKE auto-taints GPU nodes nvidia.com/gpu:NoSchedule. This toleration is
+      # REQUIRED or the Pod stays Pending — the compute-class auto-toleration does
+      # NOT cover the separate GPU taint.
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
 ---
 apiVersion: v1
 kind: Service

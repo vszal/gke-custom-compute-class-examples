@@ -1,20 +1,56 @@
+# L4 GPU inference ComputeClass for the TGI Gemma tutorial.
+#
+# Priority order follows the recommended ladder for AI/ML INFERENCE serving:
+#   (optional) Reservation -> On-Demand -> (optional) DWS FlexStart -> Spot
+#
+# On-Demand is the PRIMARY priority here, NOT Spot. Accelerator node startup is
+# slow (GPU driver install + large image pull + model load), so a Spot preemption
+# is far more disruptive to a latency-sensitive serving path than it is for
+# stateless CPU work. Spot stays only as a cheap LAST-resort fallback. The
+# commented tiers show where a reservation and DWS FlexStart slot in for production.
 apiVersion: cloud.google.com/v1
 kind: ComputeClass
 metadata:
-  name: prefer-l4-spot
+  name: l4-inference
 spec:
+  nodePoolAutoCreation:
+    enabled: true
+  autoscalingPolicy:
+    consolidationDelayMinutes: 1
   priorities:
-  - machineType: g2-standard-24
-    spot: true
-    gpu:
-      type: nvidia-l4
-      count: 2
+  # --- (Production) Reservation first: pre-paid capacity, no queue, no preemption.
+  #     Uncomment and set your reservation name to make it the top priority.
+  # - machineType: g2-standard-24
+  #   spot: false
+  #   gpu:
+  #     type: nvidia-l4
+  #     count: 2
+  #   reservations:
+  #     affinity: Specific      # never AnyBestEffort — it skips lower priorities at the GCE layer
+  #     specific:
+  #     - name: <YOUR-L4-RESERVATION>
+  #       zones: ['us-central1-a']
+
+  # --- Priority 1: On-Demand — the guaranteed serving path (PRIMARY) ---
   - machineType: g2-standard-24
     spot: false
     gpu:
       type: nvidia-l4
       count: 2
-  nodePoolAutoCreation:
-    enabled: true
-  autoscalingPolicy:
-    consolidationDelayMinutes: 1
+
+  # --- (Production) DWS FlexStart slots HERE, between On-Demand and Spot, when a
+  #     short provisioning queue is acceptable. Uncomment to use.
+  # - machineType: g2-standard-24
+  #   flexStart:
+  #     enabled: true
+  #   capacityCheckWaitTimeSeconds: 1800
+  #   gpu:
+  #     type: nvidia-l4
+  #     count: 2
+
+  # --- Priority 2: Spot — cheapest, LAST resort. Replicas + a PDB absorb preemption. ---
+  - machineType: g2-standard-24
+    spot: true
+    gpu:
+      type: nvidia-l4
+      count: 2
