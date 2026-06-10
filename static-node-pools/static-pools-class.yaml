@@ -8,6 +8,6 @@ spec:
   - nodepools: [n2-4-spot-pool]
   - nodepools: [n2d-4-spot-pool]
   autoscalingPolicy:
-    consolidationDelayMinutes : 2
+    consolidationDelayMinutes: 2
   activeMigration:
     optimizeRulePriority: true

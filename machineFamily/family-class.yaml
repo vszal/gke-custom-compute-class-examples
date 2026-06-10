@@ -9,7 +9,7 @@ spec:
   - machineFamily: c3d
     minCores: 4
   autoscalingPolicy:
-    consolidationDelayMinutes : 1
+    consolidationDelayMinutes: 1
   activeMigration:
     optimizeRulePriority: true
   nodePoolAutoCreation:
