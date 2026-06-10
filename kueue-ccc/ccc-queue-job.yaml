@@ -8,6 +8,9 @@ spec:
   completions: 1
   template:
     spec:
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
       containers:
       - name: container
         image: busybox
