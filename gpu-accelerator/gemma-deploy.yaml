@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-gemma-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gemma-server
+  template:
+    metadata:
+      labels:
+        app: gemma-server
+        ai.gke.io/model: gemma-4-e2b-it
+        ai.gke.io/inference-server: vllm
+    spec:
+      containers:
+      - name: inference-server
+        image: us-docker.pkg.dev/vertex-ai/vertex-vision-model-garden-dockers/pytorch-vllm-serve:gemma4
+        resources:
+          requests:
+            cpu: "2"
+            memory: "10Gi"
+            ephemeral-storage: "10Gi"
+            nvidia.com/gpu: "1"
+          limits:
+            cpu: "2"
+            memory: "10Gi"
+            ephemeral-storage: "10Gi"
+            nvidia.com/gpu: "1"
+        command: ["python3", "-m", "vllm.entrypoints.api_server"]
+        args:
+        - --model=$(MODEL_ID)
+        - --host=0.0.0.0
+        - --port=8000
+        - --tensor-parallel-size=1
+        - --enable-chunked-prefill
+        - --enable-prefix-caching
+        - --generation-config=auto
+        - --dtype=bfloat16
+        - --max-num-seqs=16
+        - --max-model-len=32768
+        - --gpu-memory-utilization=0.95
+        - --trust-remote-code
+        env:
+        - name: LD_LIBRARY_PATH
+          value: ${LD_LIBRARY_PATH}:/usr/local/nvidia/lib64
+        - name: MODEL_ID
+          value: google/gemma-4-E2B-it
+        volumeMounts:
+        - mountPath: /dev/shm
+          name: dshm
+      volumes:
+      - name: dshm
+        emptyDir:
+          medium: Memory
+      # Swap the tutorial's accelerator nodeSelector for the ComputeClass — GKE
+      # provisions the GPU node from the gpu-inference priority ladder instead.
+      nodeSelector:
+        cloud.google.com/compute-class: gpu-inference
+      # GKE auto-taints GPU nodes nvidia.com/gpu:NoSchedule. This toleration is
+      # REQUIRED or the Pod stays Pending — the compute-class auto-toleration does
+      # NOT cover the separate GPU taint.
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llm-service
+spec:
+  selector:
+    app: gemma-server
+  type: ClusterIP
+  ports:
+  - protocol: TCP
+    port: 8000
+    targetPort: 8000

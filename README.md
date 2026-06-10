@@ -42,6 +42,6 @@ Each folder has its own README with the full walkthrough.
 | [balanced-reservations](./balanced-reservations) | Node- vs pod-level "balanced"; multi-zone Specific reservations |
 | [large-shape-fallback](./large-shape-fallback) | Progressive smaller-shape fallback for scarce >32 vCPU shapes |
 | [stateful-db](./stateful-db) | Zone-pinned PostgreSQL; reservation-first, all Gen-4 Hyperdisk |
-| [gpu-accelerator](./gpu-accelerator) | L4 GPU inference priority ladder + the required GPU toleration |
+| [gpu-accelerator](./gpu-accelerator) | vLLM Gemma 4 GPU inference priority ladder + the required GPU toleration |
 | [system-pool](./system-pool) | A cheap class for non-DaemonSet `kube-system` pods |
 | [kueue-ccc](./kueue-ccc) | Kueue job queueing layered on top of ComputeClasses |

@@ -4,7 +4,7 @@ metadata:
   name: cuda-pod
 spec:
   nodeSelector:
-    cloud.google.com/compute-class: l4-inference
+    cloud.google.com/compute-class: gpu-inference
   # GPU nodes are auto-tainted nvidia.com/gpu:NoSchedule — tolerate it or the Pod
   # stays Pending (this is separate from the compute-class auto-toleration).
   tolerations:
