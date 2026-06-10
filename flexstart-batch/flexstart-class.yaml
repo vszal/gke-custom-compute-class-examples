@@ -1,0 +1,42 @@
+# ComputeClass for GPU BATCH/TRAINING using DWS flex-start provisioning.
+#
+# WHAT flex-start IS: Dynamic Workload Scheduler hands you scarce accelerators as
+# an all-or-nothing, time-bounded lease. GKE QUEUES the request until the whole
+# gang of capacity is available, provisions it together, and reclaims it when the
+# lease ends (up to 7 days). Capacity you'd never get on-demand becomes reachable
+# because you accept a queue wait.
+#
+# WHEN to use it: throughput batch and training — work that tolerates a
+# provisioning queue. Do NOT use it for latency-sensitive serving; for that keep
+# On-Demand primary (see ../gpu-accelerator). flex-start pairs with a Job, not a
+# long-lived Deployment.
+#
+# capacityCheckWaitTimeSeconds caps how long GKE waits at this priority before
+# falling through to the next one (here: Spot).
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: flexstart-training
+spec:
+  nodePoolAutoCreation:
+    enabled: true
+  priorities:
+  # Priority 1 — flex-start: queued, all-or-nothing, time-bounded capacity.
+  - flexStart:
+      enabled: true
+      # For multi-day jobs, nodeRecycling drains a node leadTimeSeconds before its
+      # lease ends so a fresh node is ready for a checkpoint handoff. Uncomment:
+      # nodeRecycling:
+      #   leadTimeSeconds: 3600
+    machineType: g2-standard-8
+    gpu:
+      type: nvidia-l4
+      count: 1
+    capacityCheckWaitTimeSeconds: 1800
+  # Priority 2 — Spot fallback if the flex-start queue is too slow this run.
+  - spot: true
+    machineType: g2-standard-8
+    gpu:
+      type: nvidia-l4
+      count: 1
+  whenUnsatisfiable: DoNotScaleUp

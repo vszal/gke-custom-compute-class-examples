@@ -1,0 +1,41 @@
+# ComputeClass that provisions a TPU slice via node auto-creation.
+#
+# A priority's `tpu` block names the accelerator the way a `gpu` block does.
+# Here: a single-host TPU v6e (Trillium) slice. type + topology + count together
+# define the slice — tpu-v6e-slice at topology 2x4 is 8 chips on ONE host, the
+# simplest TPU shape to schedule (no multi-host coordination / JobSet needed).
+#
+# CAVEAT — TPU capacity is usually RESERVED. On-demand TPU is scarce; most teams
+# consume a reservation (see the commented top priority) and keep Spot as the
+# cheap fallback for preemptible work.
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: tpu-v6e
+spec:
+  nodePoolAutoCreation:
+    enabled: true
+  priorities:
+  # --- (Production) Reservation first — uncomment and set your reservation. ---
+  # - tpu:
+  #     type: tpu-v6e-slice
+  #     count: 8
+  #     topology: 2x4
+  #   reservations:
+  #     affinity: Specific
+  #     specific:
+  #     - name: <YOUR-TPU-RESERVATION>
+
+  # --- Priority 1: On-Demand single-host v6e slice ---
+  - tpu:
+      type: tpu-v6e-slice
+      count: 8
+      topology: 2x4
+
+  # --- Priority 2: Spot fallback for preemptible / batch work ---
+  - spot: true
+    tpu:
+      type: tpu-v6e-slice
+      count: 8
+      topology: 2x4
+  whenUnsatisfiable: DoNotScaleUp

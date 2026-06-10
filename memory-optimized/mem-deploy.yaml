@@ -1,0 +1,28 @@
+# A memory-heavy pod: the large memory request relative to CPU is what makes a
+# memory-optimized node the right fit (and a general-purpose node a poor one).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: in-memory-cache
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: in-memory-cache
+  template:
+    metadata:
+      labels:
+        app: in-memory-cache
+    spec:
+      nodeSelector:
+        cloud.google.com/compute-class: mem-optimized
+      containers:
+      - name: redis
+        image: redis:7
+        resources:
+          requests:
+            cpu: "2"
+            memory: "128Gi"   # high mem:vCPU — the point of the m-series
+          limits:
+            cpu: "4"
+            memory: "128Gi"

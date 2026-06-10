@@ -1,0 +1,34 @@
+# nginx ships a multi-arch image, so it runs on both c4a (arm64) and c4 (amd64).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: arm-web
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: arm-web
+  template:
+    metadata:
+      labels:
+        app: arm-web
+    spec:
+      nodeSelector:
+        cloud.google.com/compute-class: arm-preferred
+      # GKE taints Arm nodes kubernetes.io/arch=arm64:NoSchedule. Tolerate it or
+      # the pod stays Pending on the c4a (Arm) priority.
+      tolerations:
+      - key: kubernetes.io/arch
+        operator: Equal
+        value: arm64
+        effect: NoSchedule
+      containers:
+      - name: web
+        image: nginx:1.27   # multi-arch (arm64 + amd64)
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "256Mi"
+          limits:
+            cpu: "1"
+            memory: "512Mi"

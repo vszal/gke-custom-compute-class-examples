@@ -1,0 +1,28 @@
+# ComputeClass for MEMORY-OPTIMIZED nodes (m-series): much higher memory-per-vCPU
+# than general-purpose c4/n4.
+#
+# WHY: in-memory databases and caches, large analytics, and SAP-style workloads
+# are gated by RAM, not cores. On a general-purpose family you'd over-provision
+# vCPU just to reach the memory you need. The m-series carries far more GB per
+# vCPU, so you pay for the memory you actually use.
+#
+# whenUnsatisfiable: DoNotScaleUp is intentional — if no memory-optimized node is
+# available, keep the pod Pending rather than silently provisioning a
+# general-purpose node that can't hold the working set.
+#
+# CAVEAT — availability. m-series (and especially the largest, x4, for SAP HANA)
+# has narrower regional availability and is frequently reservation-gated. Align
+# the family with your reservations/CUDs and confirm it exists in your region.
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: mem-optimized
+spec:
+  nodePoolAutoCreation:
+    enabled: true
+  priorities:
+  - machineFamily: m4   # current-gen memory-optimized
+    minCores: 8
+  - machineFamily: m3   # fallback
+    minCores: 8
+  whenUnsatisfiable: DoNotScaleUp

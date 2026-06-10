@@ -1,0 +1,29 @@
+# Spot-PRIMARY ComputeClass — the deliberate INVERSE of the serving rule.
+#
+# ../gpu-accelerator argues Spot must never be primary for latency-sensitive
+# serving. The opposite is true for FAULT-TOLERANT BATCH: Spot is ~60-90% cheaper
+# and a preemption just reschedules work. So here Spot is priority 1, with
+# On-Demand only as a guarantee-of-progress fallback.
+#
+# Spot gives a ~25s graceful shutdown notice (SIGTERM) before reclamation —
+# design the workload to checkpoint/exit cleanly in that window. Pair with a
+# PodDisruptionBudget (see the deploy) so voluntary disruptions stay bounded.
+# activeMigration moves pods from the On-Demand fallback back onto Spot when
+# cheap capacity returns.
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: spot-batch
+spec:
+  nodePoolAutoCreation:
+    enabled: true
+  priorities:
+  - spot: true            # PRIMARY — cheapest
+    machineFamily: c4
+    minCores: 4
+  - spot: false           # fallback — guarantees progress when Spot is starved
+    machineFamily: c4
+    minCores: 4
+  whenUnsatisfiable: ScaleUpAnyway
+  activeMigration:
+    optimizeRulePriority: true   # back to Spot when capacity returns

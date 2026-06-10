@@ -1,0 +1,34 @@
+# ComputeClass that packs MULTIPLE pods onto ONE physical GPU via time-sharing.
+#
+# PROBLEM: an L4 is overkill for many small / bursty / low-QPS inference pods.
+# Giving each pod a whole GPU wastes most of the silicon and the money.
+#
+# SOLUTION: gpuSharing exposes the single physical GPU as N schedulable units.
+# With sharingStrategy: TIME_SHARING and maxSharedClientsPerGPU: 4, a node with
+# one L4 advertises FOUR allocatable nvidia.com/gpu, so four pods (each
+# requesting gpu: 1) land on the same card and the GPU context-switches between
+# them.
+#
+# CAVEAT — no isolation. Time-sharing gives NO memory or fault isolation: one
+# pod can OOM the GPU for the others. Use it for trusted, bursty, low-utilization
+# work. For memory isolation pick a different strategy in the SAME gpuSharing
+# block: sharingStrategy: MPS (soft partition), or gpuPartitionSize (MIG, hard
+# partition, A100/H100 only).
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: gpu-shared
+spec:
+  nodePoolAutoCreation:
+    enabled: true
+  autoscalingPolicy:
+    consolidationDelayMinutes: 1
+  priorities:
+  - machineType: g2-standard-8   # one NVIDIA L4
+    spot: false
+    gpu:
+      type: nvidia-l4
+      count: 1
+      gpuSharing:
+        sharingStrategy: TIME_SHARING
+        maxSharedClientsPerGPU: 4

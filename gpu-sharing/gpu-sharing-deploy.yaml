@@ -1,0 +1,35 @@
+# Four replicas, each requesting gpu: 1. With maxSharedClientsPerGPU: 4 on the
+# gpu-shared class, all four schedule onto the SAME physical L4.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpu-shared-workers
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: gpu-shared-worker
+  template:
+    metadata:
+      labels:
+        app: gpu-shared-worker
+    spec:
+      nodeSelector:
+        cloud.google.com/compute-class: gpu-shared
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+      containers:
+      - name: worker
+        image: nvidia/cuda:12.4.1-base-ubuntu22.04
+        command: ["/bin/bash", "-c", "--"]
+        # Each replica just keeps the GPU attached; swap in your inference server.
+        args: ["while true; do nvidia-smi -L; sleep 300; done;"]
+        resources:
+          limits:
+            nvidia.com/gpu: 1   # one TIME_SHARING unit, not a whole card
+            cpu: "1"
+            memory: "2Gi"
+          requests:
+            cpu: "1"
+            memory: "2Gi"

@@ -41,7 +41,13 @@ Each folder has its own README with the full walkthrough.
 | [priority-tiebreak](./priority-tiebreak) | `priorityScore` — let GKE pick the cheapest-available family in a tier |
 | [balanced-reservations](./balanced-reservations) | Node- vs pod-level "balanced"; multi-zone Specific reservations |
 | [large-shape-fallback](./large-shape-fallback) | Progressive smaller-shape fallback for scarce >32 vCPU shapes |
+| [arm-axion](./arm-axion) | Prefer Arm (Axion `c4a`), x86 fallback; multi-arch image + arm64 taint |
+| [spot-batch](./spot-batch) | Spot-**primary** for fault-tolerant batch (inverse of the serving rule) |
+| [memory-optimized](./memory-optimized) | m-series for RAM-bound workloads (high memory-per-vCPU) |
 | [stateful-db](./stateful-db) | Zone-pinned PostgreSQL; reservation-first, all Gen-4 Hyperdisk |
 | [gpu-accelerator](./gpu-accelerator) | vLLM Gemma 4 GPU inference priority ladder + the required GPU toleration |
+| [gpu-sharing](./gpu-sharing) | Pack many pods on one GPU via time-sharing (`gpuSharing`) |
+| [flexstart-batch](./flexstart-batch) | DWS flex-start: queued, time-bounded GPU capacity for batch/training |
+| [tpu-serving](./tpu-serving) | Provision a single-host TPU v6e slice (`tpu` priority block) |
 | [system-pool](./system-pool) | A cheap class for non-DaemonSet `kube-system` pods |
 | [kueue-ccc](./kueue-ccc) | Kueue job queueing layered on top of ComputeClasses |

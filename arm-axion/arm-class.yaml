@@ -1,0 +1,26 @@
+# ComputeClass that PREFERS Arm (Axion, c4a) and falls back to x86 (c4).
+#
+# WHY: Google Axion (c4a) Arm nodes are typically cheaper per vCPU than
+# comparable x86 and win on price/performance for scale-out, stateless services.
+# This class takes Arm when available and falls back to x86 c4 when it isn't,
+# with activeMigration pulling pods back onto Arm once capacity returns.
+#
+# CAVEAT — the image MUST be multi-arch. Because pods can land on EITHER c4a
+# (arm64) or c4 (amd64), the container image needs both architectures (a manifest
+# list). An amd64-only image will fail to run on the Arm node. If your image is
+# x86-only, don't use this class — pin amd64 instead.
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: arm-preferred
+spec:
+  nodePoolAutoCreation:
+    enabled: true
+  priorities:
+  - machineFamily: c4a   # Axion (Arm64), preferred for cost
+    minCores: 4
+  - machineFamily: c4    # x86 fallback when Arm is unavailable
+    minCores: 4
+  whenUnsatisfiable: ScaleUpAnyway
+  activeMigration:
+    optimizeRulePriority: true   # move back to Arm when c4a capacity returns

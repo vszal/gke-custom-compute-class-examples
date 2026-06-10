@@ -1,0 +1,42 @@
+# Fault-tolerant workers on Spot. terminationGracePeriodSeconds covers the ~25s
+# Spot preemption notice; the PDB bounds how many go down at once.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: batch-workers
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: batch-worker
+  template:
+    metadata:
+      labels:
+        app: batch-worker
+    spec:
+      nodeSelector:
+        cloud.google.com/compute-class: spot-batch
+      terminationGracePeriodSeconds: 25
+      containers:
+      - name: worker
+        image: busybox:1.36
+        # Trap SIGTERM so a real worker can checkpoint before Spot reclaims it.
+        command: ["/bin/sh", "-c", "--"]
+        args: ["trap 'echo checkpointing; exit 0' TERM; while true; do sleep 5; done"]
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "256Mi"
+          limits:
+            cpu: "1"
+            memory: "512Mi"
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: batch-workers-pdb
+spec:
+  minAvailable: 4
+  selector:
+    matchLabels:
+      app: batch-worker

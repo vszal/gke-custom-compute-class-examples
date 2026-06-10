@@ -1,0 +1,30 @@
+# Requests all 8 chips of the single-host v6e slice. The compute-class
+# nodeSelector replaces the usual gke-tpu-accelerator / gke-tpu-topology
+# selectors — GKE derives the slice shape from the ComputeClass.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tpu-workload
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tpu-workload
+  template:
+    metadata:
+      labels:
+        app: tpu-workload
+    spec:
+      nodeSelector:
+        cloud.google.com/compute-class: tpu-v6e
+      containers:
+      - name: tpu-app
+        # Swap in your JAX/PyTorch-XLA serving or training image.
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c", "--"]
+        args: ["echo 'TPU slice attached'; sleep infinity"]
+        resources:
+          limits:
+            google.com/tpu: 8   # all chips of the 2x4 single-host slice
+          requests:
+            google.com/tpu: 8

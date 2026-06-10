@@ -1,0 +1,35 @@
+# A Job (not a Deployment) is the right shape for flex-start: it runs to
+# completion and releases the leased GPU capacity when done.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gpu-training-job
+spec:
+  completions: 1
+  parallelism: 1
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: gpu-training
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        cloud.google.com/compute-class: flexstart-training
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+      containers:
+      - name: trainer
+        image: nvidia/cuda:12.4.1-base-ubuntu22.04
+        command: ["/bin/bash", "-c", "--"]
+        # Stand-in for a real training run; replace with your training entrypoint.
+        args: ["nvidia-smi && echo 'training...' && sleep 600 && echo done"]
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+            cpu: "4"
+            memory: "16Gi"
+          requests:
+            cpu: "4"
+            memory: "16Gi"
