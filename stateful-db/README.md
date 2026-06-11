@@ -34,6 +34,50 @@ Every priority uses `hyperdisk-balanced`, and the data PVC uses the
 
 Keeping boot disks and the data PVC all on Hyperdisk sidesteps it entirely.
 
+### Broadening capacity across generations with `dynamic-rwo`
+
+This example stays on a **single** disk generation on purpose. But if you ever need
+more fallback capacity and want to add a Gen-2 family (say an `n2` priority) below
+the Gen-4 ones, a fixed `hyperdisk-balanced` PVC becomes exactly the trap above — a
+Gen-2 node can't attach a Hyperdisk volume.
+
+On **GKE 1.35.3-gke.1290000+** there's a supported way to span generations safely:
+the built-in **`dynamic-rwo`** StorageClass.
+
+- `type: dynamic` provisions **Persistent Disk *or* Hyperdisk per node**, matching
+  whichever generation the node that schedules the pod supports.
+- `use-allowed-disk-topology: "true"` makes the **Cluster Autoscaler
+  disk-topology-aware**: it reads the workload's disk requirements and scales up
+  **only disk-compatible nodes**, instead of bringing up an incompatible node that
+  strands the pod in `FailedAttachVolume`.
+
+Point the data PVC at `storageClassName: dynamic-rwo` and you can widen the
+`priorities[]` ladder across Gen-2 and Gen-4 without attach failures. It's built in
+on supported clusters — reference it by name. For reference, it resolves to:
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: dynamic-rwo
+provisioner: pd.csi.storage.gke.io
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+parameters:
+  type: dynamic
+  pd-type: pd-balanced
+  hyperdisk-type: hyperdisk-balanced
+  use-allowed-disk-topology: "true"
+```
+
+Two caveats:
+
+- `dynamic` resolves to the **balanced** tiers — for `hyperdisk-extreme` / `-ml` /
+  `-throughput` use a dedicated Hyperdisk class instead.
+- Switching to `dynamic-rwo` only affects **newly provisioned** PVs. An existing
+  Hyperdisk (or PD) volume keeps its type — migrate the data (snapshot/restore or a
+  DB-level copy); PD↔Hyperdisk is not an in-place conversion.
+
 ### Kernel sysctls (applied to every priority)
 `priorityDefaults.nodeSystemConfig` applies two sysctls to whichever family wins:
 
@@ -84,6 +128,10 @@ us-central1-a (every priority pinned here)
 
   `WaitForFirstConsumer` is important — it delays PV creation until the pod is
   scheduled, so the disk is provisioned in the zone the node actually lands in.
+
+  On **GKE 1.35.3-gke.1290000+** you can instead use the built-in **`dynamic-rwo`**
+  StorageClass if your priority ladder spans disk generations — see
+  [Broadening capacity across generations](#broadening-capacity-across-generations-with-dynamic-rwo).
 
 ## Deploy
 

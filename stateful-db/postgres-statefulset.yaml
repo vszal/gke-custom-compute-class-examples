@@ -52,6 +52,12 @@ spec:
       # CRITICAL: hyperdisk-balanced keeps the data PV on the SAME disk generation
       # as the node's Gen-4 boot disk. Never use a pd-* class here — mixing Gen-2
       # (pd) and Gen-4 (hyperdisk) leads to volume attach failures.
+      #
+      # Alternative (GKE 1.35.3-gke.1290000+): swap to the built-in `dynamic-rwo`
+      # StorageClass if you broaden priorities[] across disk generations. It
+      # provisions PD or Hyperdisk per node and keeps the autoscaler
+      # disk-topology-aware, so a Gen-2 fallback node won't strand the pod in
+      # FailedAttachVolume. See README "Broadening capacity across generations".
       storageClassName: hyperdisk-balanced
       resources:
         requests:

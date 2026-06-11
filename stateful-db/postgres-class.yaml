@@ -8,6 +8,9 @@
 #     zone. NO Spot — a primary database must not be preemptible.
 #   * ALL Gen-4 families on Hyperdisk. CRITICAL: never mix Gen-2 (pd-*) and Gen-4
 #     (hyperdisk-*) disks across priorities[] — mixing causes PV attach failures.
+#     (Exception, GKE 1.35.3-gke.1290000+: a `dynamic-rwo` data-PV StorageClass keeps
+#     the Cluster Autoscaler disk-topology-aware, so you CAN broaden priorities[]
+#     across generations safely — see README "Broadening capacity across generations".)
 #   * Kernel sysctls applied to every priority via priorityDefaults.
 apiVersion: cloud.google.com/v1
 kind: ComputeClass
