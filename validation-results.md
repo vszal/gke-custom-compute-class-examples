@@ -3,9 +3,9 @@
 This report compiles the validation results, configurations, and staged fixes for all GKE ComputeClass example manifests across the workspace.
 
 ### Validation Metadata
-- **Validation Date:** June 10, 2026
-- **Git Commit (Shorthash):** `f77dd08`
-- **Validation Method:** Local cluster server dry-run check (`kubectl apply --dry-run=server`)
+- **Validation Date:** June 11, 2026
+- **Git Commit (Shorthash):** `94816f2`
+- **Validation Method:** This run re-validated **stateful-db** only (dynamic-rwo doc/comment additions; manifests structurally unchanged) via **client-side** dry-run (`kubectl apply --dry-run=client`) + YAML schema lint — server-side dry-run was not run this session (shared-cluster mutation not authorized). Rows 1–7 and 9–19 carry forward their **PASS** from the prior server dry-run at `f77dd08` (June 10, 2026).
 
 > **Note on GKE Validating Webhooks:** For validating admission controllers (such as GKE Warden constraints) to resolve ComputeClass features and selectors correctly during dry-run checks of workload manifests, the target `ComputeClass` resource must be deployed to the cluster. When the classes are deployed, GKE Warden resolves the configurations dynamically and validates the workloads with no redundant selectors required.
 
@@ -22,7 +22,7 @@ This report compiles the validation results, configurations, and staged fixes fo
 | 5 | **large-shape-fallback** | **PASS** ✅ | `large-shape-class.yaml`<br>`large-shape-deploy.yaml` | None | Lists large preferred shapes (`c4-standard-48`) and progressively smaller shapes (`c4-standard-16`, `c4-standard-8`) as fallbacks to protect horizontally-scalable workloads from out-of-resources stockouts. |
 | 6 | **machineFamily** | **PASS** ✅ | `family-class.yaml`<br>`family-deploy.yaml` | None | Correctly ranks families (`c4` -> `c3d`) and enables active migration for automatic scaling optimization. |
 | 7 | **priority-tiebreak** | **PASS** ✅ | `tiebreak-class.yaml`<br>`tiebreak-deploy.yaml` | None | Adheres strictly to `priorityScore` rules (max 3 priorities per score, all-or-nothing, unquoted integer values) to enable cost-based tie-breaking. |
-| 8 | **stateful-db** | **PASS** ✅ | `postgres-class.yaml`<br>`postgres-statefulset.yaml` | None | Pins priorities to `us-central1-a` to preserve PersistentVolume affinity. Consistently uses `hyperdisk-balanced` (Gen-4) to prevent volume attach errors from mixed disk generations. Correctly applies node-level sysctls. |
+| 8 | **stateful-db** | **PASS** ✅ (client-side) | `postgres-class.yaml`<br>`postgres-statefulset.yaml` | None | Pins priorities to `us-central1-a` to preserve PersistentVolume affinity. Consistently uses `hyperdisk-balanced` (Gen-4) to prevent volume attach errors from mixed disk generations. Correctly applies node-level sysctls. **New:** documents the built-in `dynamic-rwo` StorageClass (GKE 1.35.3-gke.1290000+, `type: dynamic` + `use-allowed-disk-topology: "true"`) as the supported path to broaden `priorities[]` across disk generations while keeping the autoscaler disk-topology-aware. |
 | 9 | **static-node-pools** | **PASS** ✅ | `static-pools-class.yaml`<br>`static-pools-deploy.yaml` | None | References manually managed node pools instead of auto-creation. Demonstrates fallback and active migration across existing pools. |
 | 10 | **storage** | **PASS** ✅ | `lssd-class.yaml`<br>`lssd-deploy.yaml` | None | Accurately configures boot disk sizes and raw local SSD count using unquoted integers. |
 | 11 | **system-pool** | **PASS** ✅ | `system-pool-class.yaml` | None | Uses `whenUnsatisfiable: ScaleUpAnyway` and the namespace label to route non-DaemonSet system pods onto cheaper `n4` nodes, avoiding unmovable node scale-down blocks. |
