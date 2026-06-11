@@ -1,0 +1,25 @@
+# Plain workload pinned to the hybrid class. It fills the curated manual pool first,
+# then spills onto NAP-created fallback nodes as it scales.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hybrid-app
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: hybrid-app
+  template:
+    metadata:
+      labels:
+        app: hybrid-app
+    spec:
+      nodeSelector:
+        cloud.google.com/compute-class: hybrid-capacity
+      containers:
+      - name: app
+        image: nginx:1.27
+        resources:
+          requests:
+            cpu: "2"
+            memory: 1Gi

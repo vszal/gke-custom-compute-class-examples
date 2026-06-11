@@ -38,6 +38,7 @@ Each folder has its own README with the full walkthrough.
 | [machineType](./machineType) | Pin exact shapes + Spot → On-Demand fallback |
 | [storage](./storage) | Custom boot disk type/size + attach local SSD |
 | [static-node-pools](./static-node-pools) | Reference pre-created pools; fallback + active migration (Standard only) |
+| [hybrid-pools](./hybrid-pools) | Curated manual pool on top, NAP long-tail fallback; intent matches manual pools (churn-resilient) |
 | [priority-tiebreak](./priority-tiebreak) | `priorityScore` — let GKE pick the cheapest-available family in a tier |
 | [balanced-reservations](./balanced-reservations) | Node- vs pod-level "balanced"; multi-zone Specific reservations |
 | [large-shape-fallback](./large-shape-fallback) | Progressive smaller-shape fallback for scarce >32 vCPU shapes |
