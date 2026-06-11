@@ -20,7 +20,7 @@ whenUnsatisfiable: DoNotScaleUp
 ```
 
 - `machineType` pins the **exact shape** — contrast with `machineFamily`, which only
-  picks a family and lets NAP choose the size. These `-lssd` shapes ship with local
+  picks a family and lets node auto-provisioning choose the size. These `-lssd` shapes ship with local
   SSD attached.
 - `spot: true` requests Spot VMs (cheap, preemptible). The final `spot: false` rule
   guarantees a landing spot when Spot capacity is unavailable.

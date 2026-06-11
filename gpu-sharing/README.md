@@ -13,12 +13,13 @@ card and the GPU context-switches between them.
 | Strategy | Field | Isolation | Use for |
 |----------|-------|-----------|---------|
 | Time-sharing | `sharingStrategy: TIME_SHARING` | none (context-switch) | trusted, bursty, low-util inference / dev |
-| MPS | `sharingStrategy: MPS` | soft (mem + SM caps) | concurrent steady small workloads |
-| MIG | `gpuPartitionSize: 1g.5gb` | hard (HW partition) | strong isolation; A100 / H100 only |
+| Multi-Process Service | `sharingStrategy: MPS` | soft (memory + compute caps) | concurrent steady small workloads |
+| Multi-Instance GPU | `gpuPartitionSize: 1g.5gb` | hard (hardware partition) | strong isolation; A100 / H100 only |
 
 > **No isolation with time-sharing.** Pods share GPU memory with no limit — one
 > pod can OOM the card for its neighbors. Use it only for trusted workloads. Need
-> isolation? Switch `sharingStrategy` to `MPS`, or set `gpuPartitionSize` for MIG.
+> isolation? Switch `sharingStrategy` to `MPS` (Multi-Process Service), or set
+> `gpuPartitionSize` for Multi-Instance GPU.
 
 ## Deploy & observe
 

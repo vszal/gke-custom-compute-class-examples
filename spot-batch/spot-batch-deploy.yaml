@@ -1,5 +1,5 @@
 # Fault-tolerant workers on Spot. terminationGracePeriodSeconds covers the ~25s
-# Spot preemption notice; the PDB bounds how many go down at once.
+# Spot preemption notice; the PodDisruptionBudget bounds how many go down at once.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

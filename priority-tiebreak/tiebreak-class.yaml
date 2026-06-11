@@ -29,7 +29,7 @@ spec:
   # Tiers below: three Gen-4 families on top, two Gen-2 fallbacks, e2 floor.
   priorities:
   # --- Tier 1 (score 100): three equivalent Gen-4 On-Demand families ---
-  - machineFamily: c4d   # IMPORTANT: Align machineFamily with your existing CUDs/Reservations
+  - machineFamily: c4d   # IMPORTANT: Align machineFamily with your existing committed use discounts/Reservations
     minCores: 8
     spot: false
     priorityScore: 100

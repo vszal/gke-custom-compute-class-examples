@@ -25,7 +25,7 @@ spec:
   # ONE priority per machine SIZE that names ALL THREE zonal reservations.
   # Do NOT split this into one priority per zone: priorities are evaluated
   # sequentially, so per-zone priorities would drain zone-a before touching b/c.
-  - machineType: n4-standard-32   # IMPORTANT: Align machineType with your existing CUDs/Reservations (n4-standard-32 = 32 vCPU / 128 GB)
+  - machineType: n4-standard-32   # IMPORTANT: Align machineType with your existing committed use discounts/Reservations (n4-standard-32 = 32 vCPU / 128 GB)
     spot: false
     location:
       locationPolicy: BALANCED      # even NODE spread; NO zones here (they come from the reservations below)

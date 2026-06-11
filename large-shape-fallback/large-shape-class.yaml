@@ -26,7 +26,7 @@ spec:
   priorities:
   # Priority 1 — preferred LARGE shape (48 vCPU).
   # Best bin-packing (fewer, denser nodes) for many small pods, but scarcest.
-  - machineType: c4-standard-48   # IMPORTANT: Align the machineType family with your existing CUDs/Reservations
+  - machineType: c4-standard-48   # IMPORTANT: Align the machineType family with your existing committed use discounts/Reservations
     spot: false
   # Priority 2 — first fallback, MEDIUM shape (16 vCPU), wider availability.
   - machineType: c4-standard-16

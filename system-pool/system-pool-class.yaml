@@ -24,7 +24,7 @@ spec:
   # kube-system pod Pending — that can cascade into a cluster-wide outage.
   whenUnsatisfiable: ScaleUpAnyway
   priorities:
-  - machineFamily: n4   # IMPORTANT: Align machineFamily with your existing CUDs/Reservations
+  - machineFamily: n4   # IMPORTANT: Align machineFamily with your existing committed use discounts/Reservations
     minCores: 4         # n4-standard-4 (4 vCPU / 16 GB) comfortably holds typical system pods
     spot: false         # never put system pods on Spot — preemption risks control-plane-adjacent disruption
     location:

@@ -8,7 +8,7 @@ your YAML that goes stale as prices and availability change.
 
 - **Stateless workloads** — web servers, APIs, async/batch processors — where
   several machine families are functionally interchangeable.
-- You hold **CUDs or reservations** across multiple families (e.g. c4d, c4, n4)
+- You hold **committed use discounts or reservations** across multiple families (e.g. c4d, c4, n4)
   and want GKE to prefer whichever committed capacity is cheapest right now.
 - You want availability spread across families/generations without hand-ranking
   them.
@@ -35,7 +35,7 @@ The tiers in [`tiebreak-class.yaml`](./tiebreak-class.yaml):
 - GKE **1.35.2-gke.1842000** or later (required for `priorityScore`).
 - Works on Standard and Autopilot.
 
-> Edit the `machineFamily` entries to match the families you actually hold CUDs
+> Edit the `machineFamily` entries to match the families you actually hold committed use discounts
 > or reservations for — that's what makes the cost tie-break land on your
 > committed capacity.
 

@@ -1,5 +1,5 @@
 # Plain workload pinned to the hybrid class. It fills the curated manual pool first,
-# then spills onto NAP-created fallback nodes as it scales.
+# then spills onto auto-provisioned fallback nodes as it scales.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

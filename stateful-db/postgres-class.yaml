@@ -29,7 +29,7 @@ spec:
   # NOTE: no location block here. location.zones CANNOT combine with
   # affinity: Specific (GKE error: "location config with specific reservations
   # enabled"). The zone comes from reservations.specific[].zones below.
-  - machineFamily: c4d   # IMPORTANT: Align machineFamily with your existing CUDs/Reservations
+  - machineFamily: c4d   # IMPORTANT: Align machineFamily with your existing committed use discounts/Reservations
     minCores: 16
     minMemoryGb: 128     # high-memory profile (8 GB/vCPU) for a primary DB
     spot: false

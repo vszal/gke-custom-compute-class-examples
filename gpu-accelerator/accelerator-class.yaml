@@ -1,13 +1,13 @@
 # GPU inference ComputeClass for the vLLM Gemma tutorial.
 #
 # Priority order follows the recommended ladder for AI/ML INFERENCE serving:
-#   (optional) Reservation -> On-Demand -> (optional) DWS FlexStart -> Spot
+#   (optional) Reservation -> On-Demand -> (optional) Dynamic Workload Scheduler flex-start -> Spot
 #
 # On-Demand is the PRIMARY priority here, NOT Spot. Accelerator node startup is
 # slow (GPU driver install + large image pull + model load), so a Spot preemption
 # is far more disruptive to a latency-sensitive serving path than it is for
 # stateless CPU work. Spot stays only as a cheap LAST-resort fallback. The
-# commented tiers show where a reservation and DWS FlexStart slot in for production.
+# commented tiers show where a reservation and Dynamic Workload Scheduler flex-start slot in for production.
 #
 # Hosts one NVIDIA RTX PRO 6000 per g4-standard-48 node, matching the tutorial.
 apiVersion: cloud.google.com/v1
@@ -40,7 +40,7 @@ spec:
       type: nvidia-rtx-pro-6000
       count: 1
 
-  # --- (Production) DWS FlexStart slots HERE, between On-Demand and Spot, when a
+  # --- (Production) Dynamic Workload Scheduler flex-start slots HERE, between On-Demand and Spot, when a
   #     short provisioning queue is acceptable. Uncomment to use.
   # - machineType: g4-standard-48
   #   flexStart:
@@ -50,7 +50,7 @@ spec:
   #     type: nvidia-rtx-pro-6000
   #     count: 1
 
-  # --- Priority 2: Spot — cheapest, LAST resort. Replicas + a PDB absorb preemption. ---
+  # --- Priority 2: Spot — cheapest, LAST resort. Replicas + a PodDisruptionBudget absorb preemption. ---
   - machineType: g4-standard-48
     spot: true
     gpu:

@@ -44,7 +44,7 @@ them.
 kubectl apply -f system-pool-class.yaml
 ```
 
-(If you hold CUDs/reservations for a different family, edit `machineFamily` /
+(If you hold committed use discounts/reservations for a different family, edit `machineFamily` /
 `minCores` first.)
 
 ### 2. Label the kube-system namespace

@@ -12,8 +12,8 @@
 # CAVEAT — no isolation. Time-sharing gives NO memory or fault isolation: one
 # pod can OOM the GPU for the others. Use it for trusted, bursty, low-utilization
 # work. For memory isolation pick a different strategy in the SAME gpuSharing
-# block: sharingStrategy: MPS (soft partition), or gpuPartitionSize (MIG, hard
-# partition, A100/H100 only).
+# block: sharingStrategy: MPS (Multi-Process Service, soft partition), or
+# gpuPartitionSize (Multi-Instance GPU, hard partition, A100/H100 only).
 apiVersion: cloud.google.com/v1
 kind: ComputeClass
 metadata:

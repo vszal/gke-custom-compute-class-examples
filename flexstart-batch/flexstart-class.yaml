@@ -1,4 +1,4 @@
-# ComputeClass for GPU BATCH/TRAINING using DWS flex-start provisioning.
+# ComputeClass for GPU BATCH/TRAINING using Dynamic Workload Scheduler flex-start provisioning.
 #
 # WHAT flex-start IS: Dynamic Workload Scheduler hands you scarce accelerators as
 # an all-or-nothing, time-bounded lease. GKE QUEUES the request until the whole

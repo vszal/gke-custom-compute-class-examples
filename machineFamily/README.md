@@ -21,7 +21,8 @@ priorities:
 - `minCores` floors the node size.
 - `activeMigration.optimizeRulePriority: true` lets GKE **migrate workloads up** to a
   higher-priority family when its capacity returns (e.g. c3d → c4).
-- `nodePoolAutoCreation.enabled: true` lets GKE create node pools on demand (NAP).
+- `nodePoolAutoCreation.enabled: true` lets GKE create node pools on demand
+  (node auto-provisioning).
 
 ## Deploy
 

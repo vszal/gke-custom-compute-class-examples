@@ -1,12 +1,13 @@
-# HYBRID: curated manual node pool(s) on top, NAP long-tail fallback underneath.
+# HYBRID: curated manual node pool(s) on top, node-auto-provisioned long-tail
+# fallback underneath.
 #
 # WHY: your baseline is a node pool you created and curated yourself — backed by a
-# reservation/CUD, and/or using a configuration NAP doesn't create for you (precise
-# node system / kubelet tuning, a specific disk or networking setup, compact
-# placement, etc.). You want pods to fill that pool first. The lower-priority,
-# auto-created rules are there purely for SAFETY / OBTAINABILITY: if the curated
-# pool is full or unavailable, NAP provisions generic fallback capacity so pods
-# don't sit Pending.
+# reservation / committed use discount, and/or using a configuration node
+# auto-provisioning doesn't create for you (precise node system / kubelet tuning, a
+# specific disk or networking setup, compact placement, etc.). You want pods to
+# fill that pool first. The lower-priority, auto-created rules are there purely for
+# SAFETY / OBTAINABILITY: if the curated pool is full or unavailable, node
+# auto-provisioning provisions generic fallback capacity so pods don't sit Pending.
 #
 # INTENT-BASED, NOT NAME-WIRED. The top rule below is intent-based (machineType +
 # spot:false). It matches the existing manual pool because that pool carries the
@@ -27,7 +28,7 @@ metadata:
   name: hybrid-capacity
 spec:
   nodePoolAutoCreation:
-    enabled: true            # only the long-tail fallback rules auto-create pools
+    enabled: true            # only the long-tail fallback rules auto-provision pools
   priorities:
   # 1) Curated, pre-created baseline. Intent matches the labeled/tainted manual pool.
   - machineType: c4-standard-16
@@ -35,7 +36,7 @@ spec:
   # --- Explicit-name alternative (contrast; do NOT combine with the rule above):
   # - nodepools: [reserved-c4-pool]   # works, but renaming/recreating the pool
   #                                   # means editing this class — churn = rewiring.
-  # 2) Long-tail fallback (NAP-created) for safety / obtainability.
+  # 2) Long-tail fallback (node-auto-provisioned) for safety / obtainability.
   - machineFamily: c4
     minCores: 8
   - machineFamily: n4

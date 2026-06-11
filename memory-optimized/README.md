@@ -15,7 +15,7 @@ can't satisfy without a huge, wasteful node, but a natural fit for the m-series.
 
 > **Availability caveat.** m-series — and especially `x4` (the largest, for SAP
 > HANA) — has narrower regional availability and is often reservation-gated.
-> Confirm the family exists in your region and align it with your reservations/CUDs.
+> Confirm the family exists in your region and align it with your reservations/committed use discounts.
 
 ## Deploy & observe
 

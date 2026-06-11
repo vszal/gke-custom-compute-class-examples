@@ -1,7 +1,7 @@
-# DWS flex-start — queued capacity for GPU batch & training
+# Dynamic Workload Scheduler flex-start — queued capacity for GPU batch & training
 
 Gets scarce accelerators by accepting a **queue wait** instead of competing for
-on-demand capacity. Dynamic Workload Scheduler (DWS) **flex-start** leases the
+on-demand capacity. Dynamic Workload Scheduler **flex-start** leases the
 whole gang of GPUs all-at-once, for a bounded time (up to 7 days), then reclaims
 it — capacity you often can't get on-demand becomes reachable.
 

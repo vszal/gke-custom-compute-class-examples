@@ -12,7 +12,7 @@
 #
 # CAVEAT — availability. m-series (and especially the largest, x4, for SAP HANA)
 # has narrower regional availability and is frequently reservation-gated. Align
-# the family with your reservations/CUDs and confirm it exists in your region.
+# the family with your reservations/committed use discounts and confirm it exists in your region.
 apiVersion: cloud.google.com/v1
 kind: ComputeClass
 metadata:

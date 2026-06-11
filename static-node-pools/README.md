@@ -2,7 +2,7 @@
 
 *Requires a GKE **Standard** cluster.*
 
-Most examples here rely on node auto-provisioning (NAP). This one instead references
+Most examples here rely on node auto-provisioning. This one instead references
 **node pools you create yourself** with the `nodepools` priority rule, and shows how
 **fallback** and **active migration** behave when a pool hits its `max-nodes` ceiling.
 
