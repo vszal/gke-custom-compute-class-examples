@@ -10,6 +10,10 @@ Do not push any Example changes to the repo until validated using this process.
 
 To validate workload templates successfully using `kubectl apply --dry-run=server`, the GKE validating admission webhooks (like GKE Warden) must be able to dynamically resolve referenced ComputeClasses. Therefore, **you must apply the ComputeClasses to the cluster before validating the workload templates**, and then remove them during cleanup.
 
+Try the local kube context before assuming no GKE cluster is available.
+
+Do not leave permanent objects running on the cluster. If creation of objects on the cluster is necessary to execute tests, use naming conventions to avoid conflicts (long random strings etc).
+
 ## Delegate to weaker models
 
 Whenever possible, delegate validations to weaker models (local > cloud)
