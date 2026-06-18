@@ -69,4 +69,4 @@ kubectl delete namespace restricted-demo --ignore-not-found
 Upon completion of the validation routine, summarize the outcomes in `validation-results.md` matching the established table structure:
 - Retrieve the current git commit shorthash (`git rev-parse --short HEAD`).
 - Record the date and status (`PASS ✅` or `PASS ⚠️` / `FAIL ❌`).
-- Keep `validation-results.md` untracked and unstaged unless explicitly instructed by the user to commit it.
+- Commit and push `validation-results.md` as part of the routine so the latest results are recorded in the repo.
