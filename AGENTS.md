@@ -2,9 +2,17 @@
 
 This guide defines the standard, repeatable validation routine for GKE ComputeClass manifests and workload deployments in this repository.
 
+## Git repo requirements
+
+Do not push any Example changes to the repo until validated using this process.
+
 ## Pre-requisites & Core Mandate
 
 To validate workload templates successfully using `kubectl apply --dry-run=server`, the GKE validating admission webhooks (like GKE Warden) must be able to dynamically resolve referenced ComputeClasses. Therefore, **you must apply the ComputeClasses to the cluster before validating the workload templates**, and then remove them during cleanup.
+
+## Delegate to weaker models
+
+Whenever possible, delegate validations to weaker models (local > cloud)
 
 ---
 
