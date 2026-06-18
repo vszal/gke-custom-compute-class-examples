@@ -1,0 +1,36 @@
+# CONTROL 1 of 2 — CRUD safeguard (who may create/modify the ComputeClass OBJECT).
+#
+# ComputeClass is a CLUSTER-SCOPED CRD, so this must be a ClusterRole +
+# ClusterRoleBinding — a namespaced Role cannot grant access to a cluster-scoped
+# resource. apiGroup is cloud.google.com; resource is computeclasses.
+#
+# This safeguard does NOT stop a workload from REQUESTING a class — that is a pod-spec
+# field, not a verb on the object, so RBAC can't see it. For that, see
+# restrict-usage-vap.yaml. Apply both for full governance.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: computeclass-editor
+rules:
+- apiGroups: ["cloud.google.com"]
+  resources: ["computeclasses"]
+  # Grant ALL mutating verbs. create+update alone leaks: someone who can't create
+  # can still patch or delete an existing class. (Read verbs are intentionally left
+  # broad to everyone else via the default `view`/`edit` roles.)
+  verbs: ["create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: computeclass-editor-binding
+subjects:
+# Bind to a Google Group, not individual users — manage membership in Workspace,
+# and the cluster binding never changes. Requires Google Groups for GKE RBAC.
+- kind: Group
+  name: computeclass-editors@<GROUP_DOMAIN>
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: computeclass-editor
+  apiGroup: rbac.authorization.k8s.io

@@ -26,6 +26,9 @@ Some examples (such as `default-class-namespace`) require specific namespaces an
 ```bash
 kubectl create namespace team-a --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace team-a cloud.google.com/default-compute-class=team-default --overwrite
+
+# restrict-usage: governed namespace that allowed-deploy.yaml targets
+kubectl create namespace restricted-demo --dry-run=client -o yaml | kubectl apply -f -
 ```
 
 ### 3. Run Server Dry-Runs on Workloads
@@ -53,7 +56,12 @@ done
 
 # Delete custom namespaces
 kubectl delete namespace team-a --ignore-not-found
+kubectl delete namespace restricted-demo --ignore-not-found
 ```
+
+> **Note on `restrict-usage`:** its `rbac-editor.yaml` and `restrict-usage-vap.yaml`
+> are not `*class.yaml`/workload files, so they're outside the loops above — apply and
+> clean them up per that folder's README when validating the deny behavior.
 
 ---
 

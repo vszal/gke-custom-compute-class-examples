@@ -1,0 +1,84 @@
+# CONTROL 2 of 2 — Consumption safeguard (who may REQUEST the class from a workload).
+#
+# RBAC cannot express this: referencing a ComputeClass is a field in the Pod spec, not
+# a CRUD verb on the object. A native ValidatingAdmissionPolicy (in-process CEL, no
+# webhook) is the tool. There is NO field on the ComputeClass itself that allow-lists
+# namespaces — consumption control lives here, at admission.
+#
+# A workload can reach the class via THREE paths; the CEL closes ALL of them:
+#   1. nodeSelector     cloud.google.com/compute-class: gpu-restricted
+#   2. nodeAffinity     matchExpressions key cloud.google.com/compute-class In [gpu-restricted]
+#   3. tolerations      tolerating the class's NoSchedule taint, INCLUDING the wildcard
+#                       (operator: Exists with no key) which tolerates every taint.
+# matchConstraints also covers every pod-controller kind, not just pods+deployments,
+# or a StatefulSet / Job / CronJob would slip through.
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: restrict-computeclass-usage
+spec:
+  failurePolicy: Fail            # fail closed
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["pods"]
+    - apiGroups: ["apps"]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+    - apiGroups: ["batch"]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["jobs", "cronjobs"]
+  variables:
+  - name: podSpec
+    # Pods carry spec; controllers carry spec.template.spec; CronJob nests deeper.
+    expression: >-
+      has(object.spec.template) ?
+        (has(object.spec.template.spec) ? object.spec.template.spec :
+          object.spec.jobTemplate.spec.template.spec) :
+        object.spec
+  - name: hasForbiddenNodeSelectorOrAffinity
+    expression: >-
+      (has(variables.podSpec.nodeSelector) &&
+       variables.podSpec.nodeSelector['cloud.google.com/compute-class'] == 'gpu-restricted') ||
+      (has(variables.podSpec.affinity) && has(variables.podSpec.affinity.nodeAffinity) &&
+       has(variables.podSpec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution) &&
+       variables.podSpec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms.exists(term,
+         has(term.matchExpressions) && term.matchExpressions.exists(exp,
+           exp.key == 'cloud.google.com/compute-class' && exp.operator == 'In' &&
+           exp.values.exists(v, v == 'gpu-restricted'))))
+  - name: hasForbiddenComputeClassToleration
+    expression: >-
+      has(variables.podSpec.tolerations) && variables.podSpec.tolerations.exists(t,
+        t.key == 'cloud.google.com/compute-class' &&
+        (t.operator == 'Exists' || (t.operator == 'Equal' && t.value == 'gpu-restricted')) &&
+        has(t.effect) && t.effect == 'NoSchedule')
+  - name: hasWildcardToleration
+    # operator: Exists with no key tolerates ALL taints -> would land on the restricted class.
+    expression: >-
+      has(variables.podSpec.tolerations) && variables.podSpec.tolerations.exists(t,
+        t.operator == 'Exists' && !(has(t.key) && t.key != ''))
+  validations:
+  - expression: >-
+      !(variables.hasForbiddenNodeSelectorOrAffinity ||
+        variables.hasForbiddenComputeClassToleration ||
+        variables.hasWildcardToleration)
+    message: "This namespace cannot request ComputeClass gpu-restricted or use wildcard tolerations."
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: restrict-computeclass-usage-binding
+spec:
+  policyName: restrict-computeclass-usage
+  # Deny rejects violations; Audit logs them. Roll out Audit-only FIRST to find
+  # existing violators, then add Deny.
+  validationActions: ["Deny", "Audit"]
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: restricted-demo

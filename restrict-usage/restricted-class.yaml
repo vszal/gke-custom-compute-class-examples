@@ -1,0 +1,21 @@
+# The EXPENSIVE class we want to govern: a single NVIDIA RTX PRO 6000 per
+# g4-standard-48 node. Left ungoverned, ANY pod in ANY namespace can request it
+# (and burn GPU budget) just by naming it in a nodeSelector.
+#
+# Two separate controls protect it — see this folder's README:
+#   - rbac-editor.yaml        who may CREATE/MODIFY this object   (RBAC)
+#   - restrict-usage-vap.yaml who may REQUEST it from a workload  (admission)
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: gpu-restricted
+spec:
+  nodePoolAutoCreation:
+    enabled: true
+  priorities:
+  - machineType: g4-standard-48
+    spot: false
+    gpu:
+      type: nvidia-rtx-pro-6000
+      count: 1
+  whenUnsatisfiable: DoNotScaleUp

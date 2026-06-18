@@ -1,0 +1,29 @@
+# A COMPLIANT workload in the governed namespace. Note what's MISSING: no
+# cloud.google.com/compute-class nodeSelector for gpu-restricted, no matching
+# toleration, no wildcard toleration. So the VAP admits it — restricting one class
+# does not block normal scheduling.
+#
+# To see the policy DENY a request, see the README ("Test the deny") — it adds the
+# gpu-restricted selector and the apply is rejected.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compliant-app
+  namespace: restricted-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: compliant-app
+  template:
+    metadata:
+      labels:
+        app: compliant-app
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.27
+        resources:
+          requests:
+            cpu: "500m"
+            memory: 256Mi
