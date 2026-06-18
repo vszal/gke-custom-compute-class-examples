@@ -3,15 +3,10 @@
 This report compiles the validation results, configurations, and staged fixes for all GKE ComputeClass example manifests across the workspace.
 
 ### Validation Metadata
-- **Validation Date:** June 11, 2026
-- **Git Commit (Shorthash):** `94816f2`
-- **Validation Method:** This run re-validated **stateful-db** only (dynamic-rwo doc/comment additions; manifests structurally unchanged) via **client-side** dry-run (`kubectl apply --dry-run=client`) + YAML schema lint — server-side dry-run was not run this session (shared-cluster mutation not authorized). Rows 1–7 and 9–19 carry forward their **PASS** from the prior server dry-run at `f77dd08` (June 10, 2026).
-
-### Addendum — `restrict-usage` (new)
-- **Date:** June 18, 2026 · **Commit:** `2c5b58b` (working tree, restrict-usage untracked) · **Context:** `gke_vsz-demo_us-central1_ccc-accel` (GKE 1.35.5-gke.1163000)
-- **Method:** Full live routine — applied class + `restricted-demo` ns + RBAC + VAP, ran **server-side** dry-runs, then cleaned up (cluster verified pristine). RBAC/VAP files sit outside the standard class/workload globs and were applied/removed manually per the folder README.
-- **Result:** **PASS** ✅ — compliant workload admitted; all three consumption paths (nodeSelector, nodeAffinity, wildcard toleration) **denied**; `apps/v1` Deployment controller **denied** (confirms `spec.template.spec` extraction + multi-kind `matchConstraints`); same request in an out-of-scope namespace **admitted** (binding `namespaceSelector` scoping); RBAC `auth can-i` → bound editor group `yes` on create/update/delete, non-member `no`.
-- **Note:** `rbac-editor.yaml` ships the literal `<GROUP_DOMAIN>` placeholder — verification impersonated the as-applied group name; users replace it before deploy.
+- **Last Updated:** June 18, 2026 · **Git Commit (Shorthash):** `e065fd1`
+- **Latest run (June 18, 2026):** validated **restrict-usage** (new) live on `gke_vsz-demo_us-central1_ccc-accel` (GKE 1.35.5-gke.1163000) — applied class + `restricted-demo` ns + RBAC + VAP, ran **server-side** dry-runs, then cleaned up (cluster verified pristine). RBAC/VAP files sit outside the standard class/workload globs and were applied/removed manually per the folder README. **Result: PASS** ✅ — compliant workload admitted; all three consumption paths (nodeSelector, nodeAffinity, wildcard toleration) **denied**; `apps/v1` Deployment controller **denied** (confirms `spec.template.spec` extraction + multi-kind `matchConstraints`); out-of-scope namespace **admitted** (binding `namespaceSelector` scoping); RBAC `auth can-i` → bound editor group `yes` on create/update/delete, non-member `no`. Note: `rbac-editor.yaml` ships the literal `<GROUP_DOMAIN>` placeholder — verification impersonated the as-applied group; users replace it before deploy.
+- **Prior run (June 11, 2026, commit `94816f2`):** re-validated **stateful-db** only (dynamic-rwo doc/comment additions; manifests structurally unchanged) via **client-side** dry-run (`kubectl apply --dry-run=client`) + YAML schema lint — server-side not run that session.
+- **Carry-forward:** rows 1–7 and 9–19 retain their **PASS** from the server dry-run at `f77dd08` (June 10, 2026); they were not re-run on June 18.
 
 > **Note on GKE Validating Webhooks:** For validating admission controllers (such as GKE Warden constraints) to resolve ComputeClass features and selectors correctly during dry-run checks of workload manifests, the target `ComputeClass` resource must be deployed to the cluster. When the classes are deployed, GKE Warden resolves the configurations dynamically and validates the workloads with no redundant selectors required.
 
