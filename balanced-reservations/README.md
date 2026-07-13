@@ -86,9 +86,9 @@ priorities:
 
 ## Why `Specific` or `AnyThenFail`, and not `AnyBestEffort`
 
-- **`AnyThenFail` (GKE 1.36.0+)**: This is the newest and **recommended** approach if your cluster is up to date. It auto-consumes reservations in the `location.zones` without needing specific names. Critically, if reservations are full, it **fails** to On-Demand, allowing the ComputeClass to correctly evaluate the next fallback priority.
+- **`AnyThenFail` (GKE 1.36.0+)**: This is the newest and **recommended** approach if your cluster is up to date. It auto-consumes reservations in the `location.zones` without needing specific names. Critically, if reservations are full, it **fails the request at the GCE layer rather than falling back to On-Demand**, allowing the ComputeClass to correctly evaluate the next fallback priority.
 - **`Specific`**: Consumes only the named reservations. If they're exhausted, ComputeClass falls through to the next priority. Use this if you are on an older GKE version or strictly need to target specific named reservations.
-- **`AnyBestEffort`** (and `Automatic`): These fall back to standard On-Demand at the GCE layer, **silently skipping your lower ComputeClass priorities** — so a Spot or cheaper fallback you defined would never fire. Always avoid these when you want ComputeClass fallback to behave predictably.
+- **`AnyBestEffort`** (and `Automatic`): These consume standard On-Demand capacity at the GCE layer before allowing ComputeClass to evaluate lower priorities. This means a Spot or cheaper fallback you defined won't fire unless On-Demand is also completely exhausted. Avoid these when you want to strictly control fallbacks.
 
 ## Requirements
 

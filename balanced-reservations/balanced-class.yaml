@@ -40,7 +40,7 @@ spec:
     location:
       locationPolicy: BALANCED      # even NODE spread; NO zones here (they come from the reservations below)
     reservations:
-      affinity: Specific            # Or AnyThenFail (GKE 1.36+). NEVER AnyBestEffort — it falls back to On-Demand at the GCE layer and silently skips lower priorities
+      affinity: Specific            # Or AnyThenFail (GKE 1.36+). NEVER AnyBestEffort — it consumes On-Demand capacity before evaluating lower priorities
       specific:
       - name: <RESERVATION-32-ZONE-A>   # <-- replace with your reservation name in us-central1-a
         zones: ['us-central1-a']

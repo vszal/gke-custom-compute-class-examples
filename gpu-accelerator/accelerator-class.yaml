@@ -28,7 +28,7 @@ spec:
   #     type: nvidia-rtx-pro-6000
   #     count: 1
   #   reservations:
-  #     affinity: Specific      # Or AnyThenFail (GKE 1.36+). never AnyBestEffort — it skips lower priorities at the GCE layer
+  #     affinity: Specific      # Or AnyThenFail (GKE 1.36+). never AnyBestEffort — it consumes On-Demand capacity before evaluating lower priorities
   #     specific:
   #     - name: <YOUR-GPU-RESERVATION>
   #       zones: ['us-central1-a']

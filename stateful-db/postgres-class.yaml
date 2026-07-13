@@ -37,7 +37,7 @@ spec:
     minMemoryGb: 128     # high-memory profile (8 GB/vCPU) for a primary DB
     spot: false
     reservations:
-      affinity: Specific   # Or AnyThenFail (GKE 1.36+). never AnyBestEffort — it would fall back to On-Demand at the GCE layer and skip the priorities below
+      affinity: Specific   # Or AnyThenFail (GKE 1.36+). never AnyBestEffort — it consumes On-Demand capacity before evaluating lower priorities
       specific:
       - name: postgres-primary-reservation   # <-- your reservation name
         zones: ['us-central1-a']             # zone scope lives here
