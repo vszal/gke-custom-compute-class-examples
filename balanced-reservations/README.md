@@ -28,15 +28,15 @@ ships both files.
 
 ## The schema trap: `location.zones` vs `affinity: Specific`
 
-Before GKE 1.36.0, you **cannot** combine `location.zones` with `reservations.affinity: Specific`.
+You **cannot** combine `location.zones` with `reservations.affinity: Specific`.
 GKE rejects it with:
 
 ```
 location config with specific reservations enabled
 ```
 
-So the zone list lived **only** in `reservations.specific[].zones`, and the
-`location` block kept `locationPolicy` only:
+So the zone list must live **only** in `reservations.specific[].zones`, and the
+`location` block must keep `locationPolicy` only:
 
 ```yaml
 location:
@@ -48,7 +48,7 @@ reservations:
     zones: ['us-central1-a']  # zones come from the reservation entries
 ```
 
-**New in GKE 1.36.0+:** You can avoid this trap entirely by using `AnyThenFail`. See the [Why `Specific` or `AnyThenFail`](#why-specific-or-anythenfail-and-not-anybesteffort) section below.
+**New in GKE 1.36.0+:** You can avoid this trap entirely by switching from `Specific` to the `AnyThenFail` affinity type, which correctly consumes capacity across `location.zones`. See the [Why `Specific` or `AnyThenFail`](#why-specific-or-anythenfail-and-not-anybesteffort) section below.
 
 ## One priority per machine *size*, not per zone
 
