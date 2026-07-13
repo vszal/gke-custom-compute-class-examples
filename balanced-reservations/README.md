@@ -28,15 +28,15 @@ ships both files.
 
 ## The schema trap: `location.zones` vs `affinity: Specific`
 
-You **cannot** combine `location.zones` with `reservations.affinity: Specific`.
+Before GKE 1.36.0, you **cannot** combine `location.zones` with `reservations.affinity: Specific`.
 GKE rejects it with:
 
 ```
 location config with specific reservations enabled
 ```
 
-So the zone list lives **only** in `reservations.specific[].zones`, and the
-`location` block keeps `locationPolicy` only:
+So the zone list lived **only** in `reservations.specific[].zones`, and the
+`location` block kept `locationPolicy` only:
 
 ```yaml
 location:
@@ -47,6 +47,8 @@ reservations:
   - name: <RESERVATION-32-ZONE-A>
     zones: ['us-central1-a']  # zones come from the reservation entries
 ```
+
+**New in GKE 1.36.0+:** You can avoid this trap entirely by using `AnyThenFail`. See the [Why `Specific` or `AnyThenFail`](#why-specific-or-anythenfail-and-not-anybesteffort) section below.
 
 ## One priority per machine *size*, not per zone
 
@@ -82,16 +84,11 @@ priorities:
       zones: ['us-central1-c']
 ```
 
-## Why `Specific` and not `AnyBestEffort`
+## Why `Specific` or `AnyThenFail`, and not `AnyBestEffort`
 
-- **`Specific`** consumes only the named reservations. If they're exhausted,
-  ComputeClass falls through to the next priority (and here, with
-  `whenUnsatisfiable: DoNotScaleUp`, ultimately leaves pods Pending rather than
-  spilling to unreserved capacity).
-- **`AnyBestEffort`** (and `Automatic`) fall back to On-Demand at the GCE layer,
-  **silently skipping your lower ComputeClass priorities** — so a Spot or
-  cheaper fallback you defined would never fire. Always use `Specific` when you
-  want ComputeClass fallback to behave predictably.
+- **`AnyThenFail` (GKE 1.36.0+)**: This is the newest and **recommended** approach if your cluster is up to date. It auto-consumes reservations in the `location.zones` without needing specific names. Critically, if reservations are full, it **fails** to On-Demand, allowing the ComputeClass to correctly evaluate the next fallback priority.
+- **`Specific`**: Consumes only the named reservations. If they're exhausted, ComputeClass falls through to the next priority. Use this if you are on an older GKE version or strictly need to target specific named reservations.
+- **`AnyBestEffort`** (and `Automatic`): These fall back to standard On-Demand at the GCE layer, **silently skipping your lower ComputeClass priorities** — so a Spot or cheaper fallback you defined would never fire. Always avoid these when you want ComputeClass fallback to behave predictably.
 
 ## Requirements
 
