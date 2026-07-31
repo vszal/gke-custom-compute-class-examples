@@ -1,0 +1,12 @@
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityQuota
+metadata:
+  name: n4-quota
+spec:
+  selector:
+    matchLabels:
+      cloud.google.com/compute-class: prefer-n4
+      cloud.google.com/machine-family: n4
+  limits:
+    resources:
+      cpu: 8

@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quota-demo
+spec:
+  replicas: 16
+  selector:
+    matchLabels:
+      app: quota-demo
+  template:
+    metadata:
+      labels:
+        app: quota-demo
+    spec:
+      containers:
+      - name: pause
+        image: gcr.io/google_containers/pause
+        resources:
+          limits:
+            cpu: 500m
+          requests:
+            cpu: 500m
+      nodeSelector:
+        cloud.google.com/compute-class: prefer-n4
+

@@ -1,0 +1,12 @@
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: prefer-n4
+spec:
+  priorities:
+  - machineFamily: n4
+  - machineFamily: n4d
+  - machineFamily: c4
+
+  nodePoolAutoCreation:
+    enabled: true
