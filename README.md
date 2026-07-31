@@ -54,3 +54,5 @@ Each folder has its own README with the full walkthrough.
 | [kueue-ccc](./kueue-ccc) | Kueue job queueing layered on top of ComputeClasses |
 | [default-class-namespace](./default-class-namespace) | Make a class the namespace default via label — no per-pod nodeSelector |
 | [restrict-usage](./restrict-usage) | Govern a class: RBAC for who can edit it + a ValidatingAdmissionPolicy for who can request it |
+| [capacity-quota](./capacity-quota) | Limit ComputeClass scale-ups via a CapacityQuota custom resource |
+

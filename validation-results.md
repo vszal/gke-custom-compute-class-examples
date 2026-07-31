@@ -3,11 +3,14 @@
 This report compiles the validation results, configurations, and staged fixes for all GKE ComputeClass example manifests across the workspace.
 
 ### Validation Metadata
-- **Last Updated:** July 13, 2026 · **Git Commit (Shorthash):** `e383bd9`
-- **Latest run (July 13, 2026):** validated **balanced-reservations**, **stateful-db**, and **gpu-accelerator** (AnyThenFail feature documentation) via **client-side** dry-run (`kubectl apply --dry-run=client` + syntax check). Server-side not run this session due to restricted local kube credentials. **Result: PASS ⚠️** (client-side only).
+- **Last Updated:** July 31, 2026 · **Git Commit (Shorthash):** `a46a821`
+- **Latest run (July 31, 2026):** validated **capacity-quota** (new example for CapacityQuota feature) via **server-side** dry-run (`kubectl apply --dry-run=server`) and schema validation on GKE `1.36.2-gke.2064000+`. Also executed the full 4-step `AGENTS.md` validation routine across the entire repository (all 21 ComputeClasses applied and cleaned up cleanly; all workload manifests passed `--dry-run=server`). **Result: PASS ✅** (live server dry-run).
+
+- **Prior run (July 13, 2026, commit `e383bd9`):** validated **balanced-reservations**, **stateful-db**, and **gpu-accelerator** (AnyThenFail feature documentation) via **client-side** dry-run (`kubectl apply --dry-run=client` + syntax check). Server-side not run that session due to restricted local kube credentials. **Result: PASS ⚠️** (client-side only).
 - **Prior run (June 18, 2026):** validated **restrict-usage** (new) live on `gke_vsz-demo_us-central1_ccc-accel` (GKE 1.35.5-gke.1163000) — applied class + `restricted-demo` ns + RBAC + VAP, ran **server-side** dry-runs, then cleaned up (cluster verified pristine). RBAC/VAP files sit outside the standard class/workload globs and were applied/removed manually per the folder README. **Result: PASS** ✅ — compliant workload admitted; all three consumption paths (nodeSelector, nodeAffinity, wildcard toleration) **denied**; `apps/v1` Deployment controller **denied** (confirms `spec.template.spec` extraction + multi-kind `matchConstraints`); out-of-scope namespace **admitted** (binding `namespaceSelector` scoping); RBAC `auth can-i` → bound editor group `yes` on create/update/delete, non-member `no`. Note: `rbac-editor.yaml` ships the literal `<GROUP_DOMAIN>` placeholder — verification impersonated the as-applied group; users replace it before deploy.
 - **Prior run (June 11, 2026, commit `94816f2`):** re-validated **stateful-db** only (dynamic-rwo doc/comment additions; manifests structurally unchanged) via **client-side** dry-run (`kubectl apply --dry-run=client`) + YAML schema lint — server-side not run that session.
 - **Carry-forward:** rows 1–7 and 9–19 retain their **PASS** from the server dry-run at `f77dd08` (June 10, 2026); they were not re-run on July 13.
+
 
 > **Note on GKE Validating Webhooks:** For validating admission controllers (such as GKE Warden constraints) to resolve ComputeClass features and selectors correctly during dry-run checks of workload manifests, the target `ComputeClass` resource must be deployed to the cluster. When the classes are deployed, GKE Warden resolves the configurations dynamically and validates the workloads with no redundant selectors required.
 
@@ -37,3 +40,8 @@ This report compiles the validation results, configurations, and staged fixes fo
 | 18 | **default-class-namespace** | **PASS** ✅ | `default-class.yaml`<br>`team-deploy.yaml` | None | Demonstrates setting a default ComputeClass at the namespace level via label. Plain workload manifests inherit the class automatically, simplifying team deployment configurations. |
 | 19 | **hybrid-pools** | **PASS** ✅ | `hybrid-pools-class.yaml`<br>`hybrid-pools-deploy.yaml` | None | Curated manual node pools are specified on top using intent-based (rather than name-wired) priority rules, falling back underneath to auto-provisioned capacity for obtainability. |
 | 20 | **restrict-usage** | **PASS** ✅ (live server dry-run) | `restricted-class.yaml`<br>`rbac-editor.yaml`<br>`restrict-usage-vap.yaml`<br>`allowed-deploy.yaml` | None | Two-layer governance. VAP denies all three consumption paths (nodeSelector / nodeAffinity / wildcard toleration) across Pods and `apps/v1` controllers; namespace scoping via binding `namespaceSelector` confirmed (out-of-scope ns admitted). RBAC `ClusterRole` (cluster-scoped CRD) restricts create/update/patch/delete to the bound group. Placeholder `<GROUP_DOMAIN>` must be set before deploy. |
+| 21 | **capacity-quota** | **PASS** ✅ (server dry-run) | `quota-class.yaml`<br>`quota-limit.yaml`<br>`quota-deploy.yaml` | None | Demonstrates an advanced priority fallback spillover scenario where `n4` is capped at an 8 CPU limit via `CapacityQuota` (`autoscaling.x-k8s.io/v1beta1`), automatically spilling over excess workload demand to uncapped fallback Generation 4 machine families (`n4d` and `c4`). Verified via live server-side dry-run on GKE 1.36.2-gke.2064000+. |
+
+
+
+
