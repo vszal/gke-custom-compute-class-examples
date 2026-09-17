@@ -287,9 +287,19 @@ To verify that workloads consumed paid GCE capacity reservations (`reservations.
 
 ---
 
+## Use case 5: Proactive minimumCapacity verification and shortfall diagnostics
+
+When `minimumCapacity.targetNodeCount` is configured at the class level (`spec.minimumCapacity.targetNodeCount`) or per-priority level (`spec.priorities[].minimumCapacity.targetNodeCount`), Cluster Autoscaler proactively provisions capacity even when **0 user pods** are pending. It accomplishes this by injecting synthetic placeholder pods into `kube-system` named `min-nodes-fake-ccc-pod-<ccc>-<idx>` (spec-level) or `min-nodes-fake-priority-pod-<ccc>-<priority>-<idx>` (priority-level) owned by controller `autoscaling.gke.io/v1/ComputeClass/<ccc>`.
+
+Because no user pods are pending during proactive pre-warming, operators cannot rely on `kubectl get pods` or workload pod `FailedScaleUp` events when capacity falls short (for example, when a GCE reservation block has only 1 VM left or a gSC TPU/GPU subblock has a degraded host). Additionally, Cluster Autoscaler logs `no.scale.down.node.no.place.to.move.pods` on nodes hosting `min-nodes-fake-*` pods—which is expected floor protection (WAI) rather than a scale-down failure.
+
+Use `scripts/verify-minimum-capacity.sh` to audit proactive floor fulfillment, per-priority and per-reservation node counts, synthetic `min-nodes-fake-*` scale-up/shortfall events, and expected scale-down floor protection.
+
+---
+
 ## Automation helper scripts
 
-This example includes two zero-dependency (`bash` + `jq`) diagnostic shell scripts in `./scripts`. Both scripts support dual evaluation modes:
+This example includes three zero-dependency (`bash` + `jq`) diagnostic shell scripts in `./scripts`. All scripts support dual evaluation modes:
 - **CRD Status Mode (`1.36.4-gke.1391000+` with Enhanced Observability active)**: Reads `status.priorityStatuses[]` directly from the `ComputeClass` API object.
 - **Pre-Rollout Live Inference Mode**: On clusters where `status.priorityStatuses[]` is not yet active on the control plane, the scripts automatically correlate `spec.priorities` against live Cluster Autoscaler Visibility logs (`decision.scaleUp` / `noDecisionStatus.noScaleUp`), Node attributes (`node.kubernetes.io/instance-type`, `cloud.google.com/gke-spot`), and Kubernetes Pod Warning events (`FailedScaleUp` / `NotTriggerScaleUp`) scoped strictly to pods targeting the ComputeClass.
 
@@ -321,6 +331,22 @@ Performs targeted stockout detection and runbook generation across:
   --project my-gcp-project \
   --cluster my-gke-cluster \
   [--context my-kube-context]
+```
+
+### `verify-minimum-capacity.sh`
+Audits declarative `minimumCapacity.targetNodeCount` fulfillment across:
+- Effective target floor calculation (`max(spec.minimumCapacity.targetNodeCount, sum(priorities[].minimumCapacity.targetNodeCount))`).
+- Live Ready node accounting broken down by Priority Tier and GCE Reservation block (`cloud.google.com/reservation-name`).
+- Synthetic placeholder pod (`min-nodes-fake-*`) scale-up decisions (`decision.scaleUp`) and shortfall root causes (`noDecisionStatus.noScaleUp.unhandledPodGroups`).
+- Identification of `no.scale.down.node.no.place.to.move.pods` events as expected `minimumCapacity` floor protection (WAI) and detection of orphaned nodes (`ccc_priority_index=ccc_deleted`).
+
+```bash
+./scripts/verify-minimum-capacity.sh \
+  --ccc observability-class \
+  --project my-gcp-project \
+  --cluster my-gke-cluster \
+  [--context my-kube-context] \
+  [--json]
 ```
 
 ---
