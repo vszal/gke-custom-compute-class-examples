@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: observability-workload
+  labels:
+    app: observability-demo
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: observability-demo
+  template:
+    metadata:
+      labels:
+        app: observability-demo
+    spec:
+      nodeSelector:
+        cloud.google.com/compute-class: observability-class
+      containers:
+      - name: demo
+        image: registry.k8s.io/pause:3.10
+        resources:
+          requests:
+            cpu: "2"
+            memory: "4Gi"
+          limits:
+            cpu: "2"
+            memory: "4Gi"

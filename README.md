@@ -55,4 +55,5 @@ Each folder has its own README with the full walkthrough.
 | [default-class-namespace](./default-class-namespace) | Make a class the namespace default via label — no per-pod nodeSelector |
 | [restrict-usage](./restrict-usage) | Govern a class: RBAC for who can edit it + a ValidatingAdmissionPolicy for who can request it |
 | [capacity-quota](./capacity-quota) | Limit ComputeClass scale-ups via a CapacityQuota custom resource |
+| [observability](./observability) | Traceability from pending pods to scaled nodes (`ccc_priority_index`), status conditions (`ProvisioningSuspended` vs `ProvisioningConstrained`), and hard stockout monitoring (1.36.4+) |
 

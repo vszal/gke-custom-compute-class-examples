@@ -1,0 +1,52 @@
+# Multi-priority ComputeClass demonstrating GKE 1.36.4+ observability contracts.
+#
+# Observability and traceability contract:
+# 1. Priorities are 0-indexed in spec.priorities and correspond to status.priorityStatuses[].identifier:
+#    - Priority 0 ("0"): Spot n4-standard-8 (cost-optimized primary)
+#    - Priority 1 ("1"): On-Demand n4-standard-8 (reliable secondary)
+#    - Priority 2 ("2"): On-Demand c4-standard-8 (cross-family fallback)
+#
+# 2. Status priority mapping:
+#    Each entry in status.priorityStatuses[] reports an `identifier` matching its index ("0", "1", "2").
+#    When `whenUnsatisfiable: ScaleUpAnyway` is used, a synthetic entry with `identifier: "ScaleUpAnyway"`
+#    is appended to status.priorityStatuses[].
+#    In this manifest, `whenUnsatisfiable: DoNotScaleUp` is explicitly set so workloads fail rather than
+#    spilling into default E2 nodes when all preferred tiers are unavailable.
+#
+# 3. Node annotation contract:
+#    Nodes provisioned by the GKE Cluster Autoscaler for this ComputeClass carry the label:
+#      cloud.google.com/compute-class: observability-class
+#    and the annotation:
+#      ccc_priority_index: "<index>"
+#    Possible values for ccc_priority_index:
+#      - "0", "1", "2": The 0-based priority rule index that provisioned the node.
+#      - "ccc_scale_up_anyway": Node provisioned via fallback when whenUnsatisfiable: ScaleUpAnyway.
+#      - "ccc_no_rule_matching": Node provisioned without matching any priority rule or manual pool.
+#      - "ccc_deleted": Priority rule that created the node has since been removed from spec.priorities.
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: observability-class
+spec:
+  nodePoolAutoCreation:
+    enabled: true
+  priorities:
+  # Priority 0: Cost-optimized Spot n4 tier
+  - spot: true
+    machineType: n4-standard-8
+
+  # Priority 1: Reliable On-Demand n4 tier (same family fallback)
+  - spot: false
+    machineType: n4-standard-8
+
+  # Priority 2: Cross-family On-Demand c4 tier (high performance fallback)
+  - spot: false
+    machineType: c4-standard-8
+
+  # whenUnsatisfiable governs fallback behavior when all priorities fail:
+  # - DoNotScaleUp (selected): Strict adherence to defined priorities. Pods remain Pending
+  #   if all tiers are exhausted, triggering clear stockout visibility events.
+  # - ScaleUpAnyway: Provisions standard default shapes (typically e2) if all priorities are
+  #   exhausted. In status.priorityStatuses, this appears as identifier: "ScaleUpAnyway",
+  #   and nodes are annotated with ccc_priority_index: "ccc_scale_up_anyway".
+  whenUnsatisfiable: DoNotScaleUp
