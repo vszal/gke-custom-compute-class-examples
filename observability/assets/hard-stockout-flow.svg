@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 680" width="1200" height="680">
+  <defs>
+    <style>
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 22px; font-weight: 700; fill: #202124; }
+      .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 13px; fill: #5f6368; }
+      .box-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 15px; font-weight: 600; }
+      .box-desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 12px; fill: #3c4043; line-height: 1.4; }
+      .code-text { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; font-size: 11px; fill: #1a73e8; }
+      .code-error { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; font-size: 11px; fill: #d93025; }
+      .code-warn { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; font-size: 11px; fill: #b06000; }
+      .step-badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 12px; font-weight: 700; fill: #ffffff; }
+      .arrow-err { stroke: #d93025; stroke-width: 2.5; fill: none; }
+      .arrow-warn { stroke: #e37400; stroke-width: 2.5; fill: none; }
+    </style>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#d93025" />
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#e37400" />
+    </marker>
+    <filter id="shadow-hs" x="-2%" y="-2%" width="104%" height="106%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="680" fill="#ffffff" rx="8"/>
+  <rect x="20" y="20" width="1160" height="640" fill="#f8f9fa" rx="8" stroke="#dadce0" stroke-width="1"/>
+
+  <!-- Header -->
+  <text x="50" y="60" class="title">Hard stockout detection: multi-signal correlation across tiers</text>
+  <text x="50" y="82" class="subtitle">Triangulating unscheduled workloads when all priority rules exhaust available GCE capacity</text>
+
+  <!-- Column 1: Pod Demand & Exhaustion Cascade -->
+  <g filter="url(#shadow-hs)">
+    <rect x="50" y="110" width="250" height="490" rx="8" fill="#ffffff" stroke="#d93025" stroke-width="1.5"/>
+    <rect x="50" y="110" width="250" height="42" rx="8" fill="#fce8e6"/>
+    <circle cx="75" cy="131" r="13" fill="#d93025"/>
+    <text x="75" y="135" class="step-badge" text-anchor="middle">1</text>
+    <text x="98" y="136" class="box-title" fill="#c5221f">Multi-Tier Stockout</text>
+
+    <g transform="translate(65, 165)">
+      <text x="0" y="0" class="box-title" fill="#202124" font-size="13">Cascade Evaluation</text>
+      <text x="0" y="16" class="box-desc">All candidate priorities fail:</text>
+
+      <!-- Priority 0 Failure -->
+      <rect x="0" y="26" width="220" height="110" rx="4" fill="#fce8e6" stroke="#d93025" stroke-width="1"/>
+      <text x="10" y="44" class="box-title" fill="#c5221f" font-size="12">Priority 0: a3-highgpu-8g</text>
+      <text x="10" y="60" class="code-error" font-size="10">Status: ProvisioningSuspended</text>
+      <text x="10" y="76" class="box-desc" font-size="10">Reason: OutOfResources</text>
+      <text x="10" y="92" class="box-desc" font-size="10">Backoff until: 20:50:00Z</text>
+      <text x="10" y="108" class="code-error" font-size="10">Action: Excluded from scale-up</text>
+
+      <!-- Priority 1 Failure -->
+      <rect x="0" y="146" width="220" height="110" rx="4" fill="#fce8e6" stroke="#d93025" stroke-width="1"/>
+      <text x="10" y="164" class="box-title" fill="#c5221f" font-size="12">Priority 1: g2-standard-48</text>
+      <text x="10" y="180" class="code-error" font-size="10">Status: ProvisioningSuspended</text>
+      <text x="10" y="196" class="box-desc" font-size="10">Reason: OutOfResources</text>
+      <text x="10" y="212" class="box-desc" font-size="10">Backoff until: 20:42:00Z</text>
+      <text x="10" y="228" class="code-error" font-size="10">Action: Excluded from scale-up</text>
+
+      <!-- whenUnsatisfiable -->
+      <rect x="0" y="266" width="220" height="65" rx="4" fill="#f1f3f4" stroke="#5f6368" stroke-width="1"/>
+      <text x="10" y="284" class="box-title" fill="#202124" font-size="12">whenUnsatisfiable</text>
+      <text x="10" y="300" class="code-text" font-size="10">Policy: DoNotScaleUp</text>
+      <text x="10" y="316" class="box-desc" font-size="10">ScaleUpAnyway fallback disabled</text>
+
+      <rect x="0" y="342" width="220" height="60" rx="4" fill="#fce8e6"/>
+      <text x="10" y="360" class="code-error" font-weight="700">100% OF PRIORITIES</text>
+      <text x="10" y="376" class="code-error" font-weight="700">IN BACKOFF COOLDOWN</text>
+    </g>
+  </g>
+
+  <!-- Flow 1 -> 2 Arrow -->
+  <path d="M 300 355 L 348 355" class="arrow-err" marker-end="url(#arrow-red)"/>
+
+  <!-- Column 2: The 4 Converging Observability Signals -->
+  <g filter="url(#shadow-hs)">
+    <rect x="350" y="110" width="480" height="490" rx="8" fill="#ffffff" stroke="#e37400" stroke-width="1.5"/>
+    <rect x="350" y="110" width="480" height="42" rx="8" fill="#fef7e0"/>
+    <circle cx="375" cy="131" r="13" fill="#e37400"/>
+    <text x="375" y="135" class="step-badge" text-anchor="middle">2</text>
+    <text x="398" y="136" class="box-title" fill="#b06000">Observability Signal Triangulation (Four Pillars)</text>
+
+    <!-- Signal 1: ComputeClassStatus -->
+    <g transform="translate(365, 165)">
+      <rect x="0" y="0" width="450" height="92" rx="4" fill="#f8f9fa" stroke="#dadce0" stroke-width="1"/>
+      <text x="10" y="18" class="box-title" fill="#1a73e8" font-size="12">Pillar 1: ComputeClassStatus (CRD State)</text>
+      <text x="10" y="34" class="code-error" font-size="10">priorityStatuses[0].conditions: ProvisioningSuspended=True (until 20:50:00Z)</text>
+      <text x="10" y="50" class="code-error" font-size="10">priorityStatuses[1].conditions: ProvisioningSuspended=True (until 20:42:00Z)</text>
+      <text x="10" y="66" class="box-desc" font-size="10">Earliest Backoff Expiration: <tspan font-weight="700">2026-09-17T20:42:00Z</tspan> (T-3 minutes)</text>
+      <text x="10" y="82" class="box-desc" font-size="10">Indicates autoscaler will not attempt any scale-up until timer expires.</text>
+    </g>
+
+    <!-- Signal 2: CA Visibility Logs -->
+    <g transform="translate(365, 267)">
+      <rect x="0" y="0" width="450" height="102" rx="4" fill="#202124"/>
+      <text x="10" y="18" class="box-title" fill="#8ab4f8" font-size="12">Pillar 2: Cluster Autoscaler Visibility Log (noDecisionStatus)</text>
+      <text x="10" y="34" class="code-text" fill="#f28b82">"noDecisionStatus": { "noScaleUp": {</text>
+      <text x="20" y="50" class="code-text" fill="#f28b82">"reason": { "messageId": "no.scale.up.in.backoff" },</text>
+      <text x="20" y="66" class="code-text" fill="#81c995">"unhandledPodGroups": [{ "totalPodCount": 12, "samplePod": "worker-0" }],</text>
+      <text x="20" y="82" class="code-text" fill="#f28b82">"skippedMigs": [{ "reason": { "messageId": "mig.in.backoff" } }]</text>
+      <text x="10" y="96" class="code-text" fill="#f28b82">}}</text>
+    </g>
+
+    <!-- Signal 3: Kubernetes Pod Warning Events -->
+    <g transform="translate(365, 379)">
+      <rect x="0" y="0" width="450" height="68" rx="4" fill="#fce8e6" stroke="#d93025" stroke-width="1"/>
+      <text x="10" y="18" class="box-title" fill="#c5221f" font-size="12">Pillar 3: Kubernetes Pod Events (Warning FailedScaleUp)</text>
+      <text x="10" y="34" class="code-error" font-size="10">Warning FailedScaleUp: "Node scale up in zones [us-central1-a, us-central1-b]</text>
+      <text x="10" y="48" class="code-error" font-size="10">associated with this pod failed: GCE out of resources. Pod is at risk of not being scheduled."</text>
+      <text x="10" y="62" class="box-desc" font-size="10">Direct user-facing evidence that workload demand cannot be satisfied.</text>
+    </g>
+
+    <!-- Signal 4: Cloud Monitoring Metrics -->
+    <g transform="translate(365, 457)">
+      <rect x="0" y="0" width="450" height="68" rx="4" fill="#f8f9fa" stroke="#dadce0" stroke-width="1"/>
+      <text x="10" y="18" class="box-title" fill="#137333" font-size="12">Pillar 4: Cloud Monitoring (SRE Metrics)</text>
+      <text x="10" y="34" class="code-text" fill="#137333">kubernetes.io/autoscaler/cluster_pending_pods_per_ccc: 12 (sustained &gt; 5m)</text>
+      <text x="10" y="50" class="code-text" fill="#c5221f">cluster_node_provisioning_failed_attempts_count_per_ccc: +6 failures</text>
+      <text x="10" y="64" class="box-desc" font-size="10">Provides SLI metrics for SLO breach alerting and trend monitoring.</text>
+    </g>
+  </g>
+
+  <!-- Flow 2 -> 3 Arrow -->
+  <path d="M 830 355 L 868 355" class="arrow-warn" marker-end="url(#arrow-amber)"/>
+
+  <!-- Column 3: SRE Alert & Automated Incident Response -->
+  <g filter="url(#shadow-hs)">
+    <rect x="870" y="110" width="280" height="490" rx="8" fill="#ffffff" stroke="#c5221f" stroke-width="1.5"/>
+    <rect x="870" y="110" width="280" height="42" rx="8" fill="#fce8e6"/>
+    <circle cx="895" cy="131" r="13" fill="#c5221f"/>
+    <text x="895" y="135" class="step-badge" text-anchor="middle">3</text>
+    <text x="918" y="136" class="box-title" fill="#c5221f">SRE Alert &amp; Remediation</text>
+
+    <g transform="translate(885, 165)">
+      <text x="0" y="0" class="box-title" fill="#202124" font-size="13">Alert Triggered (P1 / Page)</text>
+      <text x="0" y="18" class="code-error" font-size="10">CCC_HARD_STOCKOUT_DETECTED</text>
+
+      <rect x="0" y="28" width="250" height="150" rx="4" fill="#202124"/>
+      <text x="10" y="46" class="code-text" fill="#ffffff">Incident Details:</text>
+      <text x="10" y="62" class="code-text" fill="#f28b82">• CCC: gpu-batch-profile</text>
+      <text x="10" y="78" class="code-text" fill="#f28b82">• Unsatisfied Pods: 12</text>
+      <text x="10" y="94" class="code-text" fill="#f28b82">• Tiers In Cooldown: 2/2 (100%)</text>
+      <text x="10" y="110" class="code-text" fill="#81c995">• Earliest Retry: 20:42:00Z</text>
+      <text x="10" y="126" class="code-text" fill="#ffffff">• Time to Next Attempt: 3m</text>
+      <text x="10" y="142" class="code-text" fill="#f9ab00">• Impact: Pod pending SLA breach</text>
+      <text x="10" y="158" class="code-text" fill="#8ab4f8">• Script: monitor-hard-stockouts.sh</text>
+
+      <text x="0" y="196" class="box-title" fill="#202124" font-size="13">Automated Runbook Actions</text>
+      <rect x="0" y="208" width="250" height="150" rx="4" fill="#fef7e0" stroke="#f9ab00" stroke-width="1"/>
+      <text x="10" y="226" class="box-title" fill="#b06000" font-size="11">1. Expand Priority Scope</text>
+      <text x="10" y="240" class="box-desc" font-size="10">Add fallback accelerator types</text>
+      <text x="10" y="254" class="box-desc" font-size="10">(e.g., L4 / A100-40GB / TPU v5e).</text>
+
+      <text x="10" y="274" class="box-title" fill="#b06000" font-size="11">2. Enable Regional Flexibility</text>
+      <text x="10" y="288" class="box-desc" font-size="10">Allow scheduling across secondary zones</text>
+
+      <text x="10" y="308" class="box-title" fill="#b06000" font-size="11">3. Evaluate whenUnsatisfiable</text>
+      <text x="10" y="322" class="box-desc" font-size="10">Switch to ScaleUpAnyway fallback</text>
+      <text x="10" y="336" class="box-desc" font-size="10">to avoid complete queue stall.</text>
+    </g>
+  </g>
+
+  <!-- Footer note -->
+  <text x="50" y="630" class="box-desc" font-size="11" fill="#70757a">Authoritative sources: GKE Cluster Autoscaler Visibility Events Proto (events.proto), ComputeClass types.go, and failed_scale_up_event_logger.go.</text>
+</svg>

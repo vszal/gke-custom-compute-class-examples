@@ -1,0 +1,184 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 680" width="1200" height="680">
+  <defs>
+    <style>
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 22px; font-weight: 700; fill: #202124; }
+      .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 13px; fill: #5f6368; }
+      .box-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 15px; font-weight: 600; }
+      .box-desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 12px; fill: #3c4043; line-height: 1.4; }
+      .code-text { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; font-size: 11px; fill: #1a73e8; }
+      .code-error { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; font-size: 11px; fill: #d93025; }
+      .code-success { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; font-size: 11px; fill: #1e8e3e; }
+      .step-badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 12px; font-weight: 700; fill: #ffffff; }
+      .arrow { stroke: #5f6368; stroke-width: 2; stroke-dasharray: 4,4; fill: none; }
+      .solid-arrow { stroke: #1a73e8; stroke-width: 2.5; fill: none; }
+    </style>
+    <marker id="arrow-solid" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#1a73e8" />
+    </marker>
+    <marker id="arrow-dashed" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#5f6368" />
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#1e8e3e" />
+    </marker>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="106%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="680" fill="#ffffff" rx="8"/>
+  <rect x="20" y="20" width="1160" height="640" fill="#f8f9fa" rx="8" stroke="#dadce0" stroke-width="1"/>
+
+  <!-- Header -->
+  <text x="50" y="60" class="title">End-to-end traceability flow: pending pod to provisioned node</text>
+  <text x="50" y="82" class="subtitle">Deterministic correlation between workload demand, autoscaler priority decisions, visibility logs, and node annotations</text>
+
+  <!-- Column 1: Workload & Pod Admission -->
+  <g filter="url(#shadow)">
+    <rect x="50" y="110" width="240" height="490" rx="8" fill="#ffffff" stroke="#1a73e8" stroke-width="1.5"/>
+    <rect x="50" y="110" width="240" height="42" rx="8" fill="#e8f0fe"/>
+    <circle cx="75" cy="131" r="13" fill="#1a73e8"/>
+    <text x="75" y="135" class="step-badge" text-anchor="middle">1</text>
+    <text x="98" y="136" class="box-title" fill="#1a73e8">Pending Pod</text>
+
+    <g transform="translate(65, 170)">
+      <text x="0" y="0" class="box-title" fill="#202124" font-size="13">Workload Submission</text>
+      <text x="0" y="20" class="box-desc">Pod specifies ComputeClass:</text>
+      <rect x="0" y="30" width="210" height="110" rx="4" fill="#f1f3f4"/>
+      <text x="10" y="50" class="code-text">apiVersion: v1</text>
+      <text x="10" y="66" class="code-text">kind: Pod</text>
+      <text x="10" y="82" class="code-text">metadata:</text>
+      <text x="20" y="98" class="code-text">name: worker-job-8x</text>
+      <text x="10" y="114" class="code-text">nodeSelector:</text>
+      <text x="20" y="130" class="code-text">compute-class: ml-h100</text>
+
+      <text x="0" y="170" class="box-title" fill="#202124" font-size="13">Kubernetes Scheduler</text>
+      <text x="0" y="190" class="box-desc">No existing node satisfies</text>
+      <text x="0" y="206" class="box-desc">selector + resource request.</text>
+      <text x="0" y="226" class="box-desc">Pod enters <tspan font-weight="700">Pending</tspan> state.</text>
+
+      <rect x="0" y="245" width="210" height="70" rx="4" fill="#fef7e0" stroke="#f9ab00" stroke-width="1"/>
+      <text x="10" y="265" class="code-text" fill="#b06000">Status: PodPending</text>
+      <text x="10" y="285" class="box-desc" font-size="11">Cluster Autoscaler</text>
+      <text x="10" y="300" class="box-desc" font-size="11">initiates scale-up cycle</text>
+    </g>
+  </g>
+
+  <!-- Flow 1 -> 2 Arrow -->
+  <path d="M 290 280 L 338 280" class="solid-arrow" marker-end="url(#arrow-solid)"/>
+
+  <!-- Column 2: Autoscaler Priority Evaluation -->
+  <g filter="url(#shadow)">
+    <rect x="340" y="110" width="260" height="490" rx="8" fill="#ffffff" stroke="#5f6368" stroke-width="1"/>
+    <rect x="340" y="110" width="260" height="42" rx="8" fill="#f1f3f4"/>
+    <circle cx="365" cy="131" r="13" fill="#5f6368"/>
+    <text x="365" y="135" class="step-badge" text-anchor="middle">2</text>
+    <text x="388" y="136" class="box-title" fill="#202124">Priority Evaluation</text>
+
+    <!-- Priority 0 Box (Stockout) -->
+    <g transform="translate(355, 165)">
+      <rect x="0" y="0" width="230" height="150" rx="6" fill="#fce8e6" stroke="#d93025" stroke-width="1"/>
+      <text x="12" y="22" class="box-title" fill="#c5221f" font-size="13">Priority 0: a3-highgpu-8g</text>
+      <text x="12" y="40" class="code-error">STOCKOUT ENCOUNTERED</text>
+      <text x="12" y="58" class="box-desc" font-size="11">Reason: OutOfResources</text>
+      <text x="12" y="74" class="box-desc" font-size="11">Condition emitted on CRD:</text>
+      <text x="12" y="90" class="code-error" font-size="10">ProvisioningSuspended</text>
+      <text x="12" y="106" class="box-desc" font-size="10">status: "True"</text>
+      <text x="12" y="122" class="box-desc" font-size="10">until: 2026-09-17T20:45:00Z</text>
+      <text x="12" y="138" class="code-error" font-size="10">Action: Priority 0 SKIPPED</text>
+    </g>
+
+    <!-- Priority 1 Box (Success) -->
+    <g transform="translate(355, 330)">
+      <rect x="0" y="0" width="230" height="145" rx="6" fill="#e6f4ea" stroke="#1e8e3e" stroke-width="1.5"/>
+      <text x="12" y="22" class="box-title" fill="#137333" font-size="13">Priority 1: g2-standard-96</text>
+      <text x="12" y="40" class="code-success">CAPACITY AVAILABLE</text>
+      <text x="12" y="58" class="box-desc" font-size="11">Evaluation: Matches pod group</text>
+      <text x="12" y="74" class="box-desc" font-size="11">Node pool: nap-g2-std-96-grp</text>
+      <text x="12" y="90" class="box-desc" font-size="11">Condition emitted on CRD:</text>
+      <text x="12" y="106" class="code-success" font-size="10">NodeProvisioningInProgress</text>
+      <text x="12" y="122" class="box-desc" font-size="10">reason: PodPending (count: 1)</text>
+      <text x="12" y="138" class="code-success" font-size="10">Action: WINNING PRIORITY</text>
+    </g>
+  </g>
+
+  <!-- Flow 2 -> 3 Arrow -->
+  <path d="M 600 405 L 648 405" class="solid-arrow" marker-end="url(#arrow-solid)"/>
+
+  <!-- Column 3: CA Visibility Log Event -->
+  <g filter="url(#shadow)">
+    <rect x="650" y="110" width="260" height="490" rx="8" fill="#ffffff" stroke="#1a73e8" stroke-width="1"/>
+    <rect x="650" y="110" width="260" height="42" rx="8" fill="#e8f0fe"/>
+    <circle cx="675" cy="131" r="13" fill="#1a73e8"/>
+    <text x="675" y="135" class="step-badge" text-anchor="middle">3</text>
+    <text x="698" y="136" class="box-title" fill="#1a73e8">CA Visibility Log</text>
+
+    <g transform="translate(665, 165)">
+      <text x="0" y="0" class="box-title" fill="#202124" font-size="13">Cloud Logging Event</text>
+      <text x="0" y="16" class="code-text" font-size="10">cluster-autoscaler-visibility</text>
+
+      <rect x="0" y="26" width="230" height="230" rx="4" fill="#202124"/>
+      <text x="10" y="44" class="code-text" fill="#8ab4f8">"decision": {</text>
+      <text x="20" y="60" class="code-text" fill="#8ab4f8">"eventId": "evt-c4a2-88f1",</text>
+      <text x="20" y="76" class="code-text" fill="#8ab4f8">"scaleUp": {</text>
+      <text x="30" y="92" class="code-text" fill="#81c995">"triggeringPods": [{</text>
+      <text x="40" y="108" class="code-text" fill="#ffffff">"name": "worker-job-8x",</text>
+      <text x="40" y="124" class="code-text" fill="#ffffff">"namespace": "default"</text>
+      <text x="30" y="140" class="code-text" fill="#81c995">}],</text>
+      <text x="30" y="156" class="code-text" fill="#8ab4f8">"increasedMigs": [{</text>
+      <text x="40" y="172" class="code-text" fill="#ffffff">"nodepool": "nap-g2-96",</text>
+      <text x="40" y="188" class="code-text" fill="#ffffff">"zone": "us-central1-a",</text>
+      <text x="40" y="204" class="code-text" fill="#f28b82">"requestedNodes": 1</text>
+      <text x="30" y="220" class="code-text" fill="#8ab4f8">}]</text>
+      <text x="20" y="236" class="code-text" fill="#8ab4f8">}}</text>
+
+      <text x="0" y="280" class="box-title" fill="#202124" font-size="12">Traceability Link Established:</text>
+      <rect x="0" y="290" width="230" height="70" rx="4" fill="#e8f0fe" stroke="#1a73e8" stroke-width="1"/>
+      <text x="10" y="310" class="code-text" font-size="11">Pod worker-job-8x</text>
+      <text x="10" y="328" class="box-desc" font-size="11">-> eventId: evt-c4a2-88f1</text>
+      <text x="10" y="346" class="box-desc" font-size="11">-> MIG: nap-g2-96 (zone -a)</text>
+    </g>
+  </g>
+
+  <!-- Flow 3 -> 4 Arrow -->
+  <path d="M 910 405 L 948 405" class="solid-arrow" marker-end="url(#arrow-green)"/>
+
+  <!-- Column 4: Provisioned Node & Annotation -->
+  <g filter="url(#shadow)">
+    <rect x="950" y="110" width="220" height="490" rx="8" fill="#ffffff" stroke="#1e8e3e" stroke-width="1.5"/>
+    <rect x="950" y="110" width="220" height="42" rx="8" fill="#e6f4ea"/>
+    <circle cx="975" cy="131" r="13" fill="#1e8e3e"/>
+    <text x="975" y="135" class="step-badge" text-anchor="middle">4</text>
+    <text x="998" y="136" class="box-title" fill="#1e8e3e">Node Annotation</text>
+
+    <g transform="translate(965, 165)">
+      <text x="0" y="0" class="box-title" fill="#202124" font-size="13">GCE Node Bound</text>
+      <text x="0" y="18" class="box-desc">Node created by MIG</text>
+      <text x="0" y="34" class="box-desc">joins GKE cluster.</text>
+
+      <rect x="0" y="48" width="190" height="135" rx="4" fill="#f8f9fa" stroke="#dadce0" stroke-width="1"/>
+      <text x="10" y="68" class="code-text">apiVersion: v1</text>
+      <text x="10" y="84" class="code-text">kind: Node</text>
+      <text x="10" y="100" class="code-text">metadata:</text>
+      <text x="20" y="116" class="code-text">annotations:</text>
+      <rect x="18" y="122" width="160" height="24" rx="2" fill="#ceead6"/>
+      <text x="22" y="138" class="code-success" font-weight="700">ccc_priority_index: "1"</text>
+      <text x="20" y="158" class="code-text">labels: ...</text>
+      <text x="20" y="174" class="code-text">cloud.google.com/gke...</text>
+
+      <text x="0" y="210" class="box-title" fill="#202124" font-size="13">End-to-End Verification</text>
+      <rect x="0" y="222" width="190" height="138" rx="4" fill="#e6f4ea" stroke="#1e8e3e" stroke-width="1"/>
+      <text x="8" y="240" class="box-desc" font-size="11" font-weight="700">Verification complete:</text>
+      <text x="8" y="258" class="box-desc" font-size="10">1. Pod was pending</text>
+      <text x="8" y="274" class="box-desc" font-size="10">2. Priority 0 stockout</text>
+      <text x="8" y="290" class="box-desc" font-size="10">3. Priority 1 selected</text>
+      <text x="8" y="306" class="box-desc" font-size="10">4. Node annotated: "1"</text>
+      <text x="8" y="322" class="box-desc" font-size="10">5. Pod bound to Node</text>
+      <text x="8" y="342" class="code-success" font-size="10" font-weight="700">SRE SLA PRESERVED</text>
+    </g>
+  </g>
+
+  <!-- Footer note -->
+  <text x="50" y="630" class="box-desc" font-size="11" fill="#70757a">Note: The ccc_priority_index node annotation directly corresponds to the 0-based identifier in ComputeClassStatus.priorityStatuses[i].</text>
+</svg>

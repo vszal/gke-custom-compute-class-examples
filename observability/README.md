@@ -136,6 +136,8 @@ To trace a workload from creation to node placement, follow this step-by-step wo
 [Pending Pod] -> [CA Visibility decision.scaleUp] -> [ComputeClass Status] -> [Node ccc_priority_index]
 ```
 
+![End-to-end traceability flow](./assets/traceability-flow.png)
+
 1. **Pending pod creation**:
    A workload is deployed with `nodeSelector: cloud.google.com/compute-class: observability-class`. Because no existing node has sufficient spare capacity, the pod enters `Pending`.
 2. **Cluster Autoscaler evaluation**:
@@ -166,6 +168,8 @@ You can automate this entire inspection with the included script:
 ---
 
 ## Hard stockout detection workflow
+
+![Hard stockout detection flow](./assets/hard-stockout-flow.png)
 
 A **hard stockout** occurs when all candidate priority tiers in a ComputeClass fail to provision capacity or enter backoff cooldown simultaneously.
 
