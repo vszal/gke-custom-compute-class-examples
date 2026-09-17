@@ -3,8 +3,7 @@
 # verify-minimum-capacity.sh
 # Zero-dependency CLI tool to verify ComputeClass proactive minimumCapacity
 # (targetNodeCount) fulfillment, per-priority & reservation block accounting,
-# synthetic placeholder pod (min-nodes-fake-*) scale-up/shortfall diagnostics,
-# and expected scale-down floor protection.
+# proactive scale-up/shortfall diagnostics, and expected scale-down floor protection.
 # ==============================================================================
 
 set -euo pipefail
@@ -237,29 +236,29 @@ echo "[1] Per-Priority & Reservation Block Accounting"
 echo "--------------------------------------------------------------------------------"
 echo "$PRIORITY_BREAKDOWN" | jq -r '.[] | "  • Priority \(.priorityIndex) (\(.shape), Spot=\(.spot), Reservation=\(.reservation)):\n      Target Floor: \(.targetNodeCount) | Ready Nodes: \(.readyNodeCount) | Tier Shortfall: \(.shortfall)"'
 echo ""
-echo "[2] Proactive Scale-Up Telemetry (Synthetic min-nodes-fake-* Placeholder Pods)"
+echo "[2] Proactive Scale-Up Telemetry (Cluster Autoscaler Visibility)"
 echo "--------------------------------------------------------------------------------"
 SCALEUP_COUNT=$(echo "$PROACTIVE_SCALEUP_EVENTS" | jq 'length')
 if [[ "$SCALEUP_COUNT" -gt 0 ]]; then
-  echo "$PROACTIVE_SCALEUP_EVENTS" | jq -r '.[] | "  • Event ID: \(.eventId)\n      Target NodePool: \(.nodepool) (Zone: \(.zone)) -> Requested Nodes: +\(.requestedNodes)\n      Triggering Synthetic Pod(s): \(.syntheticPods | join(", "))"'
+  echo "$PROACTIVE_SCALEUP_EVENTS" | jq -r '.[] | "  • Event ID: \(.eventId)\n      Target NodePool: \(.nodepool) (Zone: \(.zone)) -> Requested Nodes: +\(.requestedNodes)\n      Triggering Target: \(.syntheticPods | join(", "))"'
 else
-  echo "  No recent decision.scaleUp events found for synthetic min-nodes-fake-* pods."
+  echo "  No recent decision.scaleUp events found for proactive minimumCapacity targets."
 fi
 echo ""
 echo "[3] Shortfall & Failure Diagnostics (noDecisionStatus.noScaleUp)"
 echo "--------------------------------------------------------------------------------"
 SHORTFALL_EVENTS_COUNT=$(echo "$SHORTFALL_NO_SCALEUP_EVENTS" | jq 'length')
 if [[ "$SHORTFALL_EVENTS_COUNT" -gt 0 ]]; then
-  echo "$SHORTFALL_NO_SCALEUP_EVENTS" | jq -r '.[] | "  • Unhandled Synthetic Pod Group: \(.samplePod) (\(.unhandledPodCount) pod(s) stalled)\n      NAP Failure Reason:       \(.napFailureReason)\n      Primary MIG Rejection:    \(.primaryRejectionReason) (\(.rejectedMigsCount) candidate MIGs rejected)\n      Remediation Guidance:     Verify GCE reservation block capacity (usedCount vs totalCount), check for degraded hosts in gSC TPU/GPU subblocks, or add a fallback priority tier."'
+  echo "$SHORTFALL_NO_SCALEUP_EVENTS" | jq -r '.[] | "  • Unhandled Capacity Floor Target: \(.samplePod) (\(.unhandledPodCount) node(s) stalled)\n      NAP Failure Reason:       \(.napFailureReason)\n      Primary MIG Rejection:    \(.primaryRejectionReason) (\(.rejectedMigsCount) candidate MIGs rejected)\n      Remediation Guidance:     Verify GCE reservation block capacity (usedCount vs totalCount), check for degraded hosts in TPU/GPU slices, or add a fallback priority tier."'
 else
-  echo "  No unhandled min-nodes-fake-* placeholder pods detected in noScaleUp logs."
+  echo "  No unhandled proactive capacity floor targets detected in noScaleUp logs."
 fi
 echo ""
 echo "[4] Scale-Down Floor Protection & Lifecycle Checks"
 echo "--------------------------------------------------------------------------------"
 FLOOR_COUNT=$(echo "$FLOOR_PROTECTION_NOSCALEDOWN" | jq 'length')
 if [[ "$FLOOR_COUNT" -gt 0 ]]; then
-  echo "  • [EXPECTED WAI] Nodes protected from scale-down by min-nodes-fake-* pods:"
+  echo "  • [EXPECTED WAI] Nodes protected from scale-down by minimumCapacity floor:"
   echo "$FLOOR_PROTECTION_NOSCALEDOWN" | jq -r '.[] | "      - \(.) (Log reason: no.scale.down.node.no.place.to.move.pods -> WAI floor enforcement)"'
 else
   echo "  • Floor protection logs: No active scale-down rejections logged in window."
