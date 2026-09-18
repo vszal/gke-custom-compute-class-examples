@@ -36,7 +36,7 @@
             "status": "True",
             "lastTransitionTime": "2026-09-17T20:30:00Z",
             "reason": "OutOfResources",
-            "message": "NodeProvisioning associated with this priority failed due to the OutOfResources error. Backing off the priority until 2026-09-17T20:45:00Z."
+            "message": "NodeProvisioning associated with this priority failed due to the OutOfResources error. Backing off the priority until 2026-09-17 20:45:00 UTC."
           }
         ],
         "resourceInfo": [
@@ -66,7 +66,7 @@
             "status": "True",
             "lastTransitionTime": "2026-09-17T20:31:00Z",
             "reason": "PodPending",
-            "message": "Node provisioning initiated for 1 node(s) to satisfy pending pods."
+            "message": "NodeProvisioning associated with this priority triggered due to pending pods. 1 new nodes will be added with config: {NodePool: nap-g2-standard-96-1a2b3c4d, MachineType: g2-standard-96, Zones: us-central1-a}"
           }
         ],
         "resourceInfo": [

@@ -112,6 +112,7 @@ PRIORITY_BREAKDOWN=$(jq -n \
   ($ccc.spec.priorities // []) | to_entries | map(
     .key as $idx |
     .value as $p |
+    (($ccc.status.priorityStatuses // []) | map(select(.identifier == ($idx | tostring))) | first // {}) as $pStatus |
     ($p.minimumCapacity.targetNodeCount // 0) as $pTarget |
     ($p.machineType // $p.tpu.type // $p.machineFamily // "unspecified") as $shape |
     ($p.spot // false) as $isSpot |
@@ -132,7 +133,11 @@ PRIORITY_BREAKDOWN=$(jq -n \
       reservation: $resName,
       targetNodeCount: $pTarget,
       readyNodeCount: $readyCount,
-      shortfall: (if $pTarget > $readyCount then ($pTarget - $readyCount) else 0 end)
+      shortfall: (if $pTarget > $readyCount then ($pTarget - $readyCount) else 0 end),
+      minCapProvisioning: ([($pStatus.conditions // [])[]? | select(.type == "MinCapacityProvisioning")] | first // null),
+      minCapProvisioned: ([($pStatus.conditions // [])[]? | select(.type == "MinCapacityProvisioned")] | first // null),
+      resourceInfo: ($pStatus.resourceInfo // []),
+      provisionedNodesHistory: ($pStatus.scalingEventsHistory.provisionedNodesCount // null)
     }
   )
   ')
@@ -151,9 +156,17 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 4. Inspect Synthetic Placeholder Pods in CA Visibility Logs
+# 4. Inspect Proactive Scale-Up Telemetry in CA Visibility Logs
 # ------------------------------------------------------------------------------
 PROACTIVE_SCALEUP_EVENTS=$(echo "$LOGS_JSON" | jq --arg ccc "$CCC_NAME" '
+  def format_target($t):
+    if ($t | test("^min-nodes-fake-priority-pod-")) then
+      ($t | capture("^min-nodes-fake-priority-pod-.+-(?<p>[0-9]+)-(?<idx>[0-9]+)$") | "Priority \(.p) MinimumCapacity Target (Slot \(.idx))")
+    elif ($t | test("^min-nodes-fake-ccc-pod-")) then
+      ($t | capture("^min-nodes-fake-ccc-pod-.+-(?<idx>[0-9]+)$") | "Spec MinimumCapacity Target (Slot \(.idx))")
+    else
+      $t
+    end;
   [ .[]? | select(.decision.scaleUp != null) |
     select(.decision.scaleUp.triggeringPods[]? | (.controller.name == $ccc)) |
     {
@@ -162,16 +175,24 @@ PROACTIVE_SCALEUP_EVENTS=$(echo "$LOGS_JSON" | jq --arg ccc "$CCC_NAME" '
       nodepool: (.decision.scaleUp.increasedMigs[0].mig.nodepool // "unknown"),
       zone: (.decision.scaleUp.increasedMigs[0].mig.zone // "unknown"),
       requestedNodes: (.decision.scaleUp.increasedMigs[0].requestedNodes // 0),
-      syntheticPods: [ .decision.scaleUp.triggeringPods[]? | .name ]
+      triggerTargets: [ .decision.scaleUp.triggeringPods[]? | format_target(.name) ]
     }
   ]')
 
 SHORTFALL_NO_SCALEUP_EVENTS=$(echo "$LOGS_JSON" | jq --arg ccc "$CCC_NAME" '
+  def format_target($t):
+    if ($t | test("^min-nodes-fake-priority-pod-")) then
+      ($t | capture("^min-nodes-fake-priority-pod-.+-(?<p>[0-9]+)-(?<idx>[0-9]+)$") | "Priority \(.p) MinimumCapacity Target (Slot \(.idx))")
+    elif ($t | test("^min-nodes-fake-ccc-pod-")) then
+      ($t | capture("^min-nodes-fake-ccc-pod-.+-(?<idx>[0-9]+)$") | "Spec MinimumCapacity Target (Slot \(.idx))")
+    else
+      $t
+    end;
   [ .[]? | select(.noDecisionStatus.noScaleUp != null) |
     .noDecisionStatus.noScaleUp.unhandledPodGroups[]? |
     select(.podGroup.samplePod.controller.name == $ccc) |
     {
-      samplePod: .podGroup.samplePod.name,
+      samplePod: format_target(.podGroup.samplePod.name),
       unhandledPodCount: .podGroup.totalPodCount,
       napFailureReason: (.napFailureReasons[0].messageId // "none"),
       rejectedMigsCount: (.rejectedMigs | length),
@@ -234,13 +255,19 @@ echo "Fulfillment Status:    $OVERALL_STATUS"
 echo ""
 echo "[1] Per-Priority & Reservation Block Accounting"
 echo "--------------------------------------------------------------------------------"
-echo "$PRIORITY_BREAKDOWN" | jq -r '.[] | "  • Priority \(.priorityIndex) (\(.shape), Spot=\(.spot), Reservation=\(.reservation)):\n      Target Floor: \(.targetNodeCount) | Ready Nodes: \(.readyNodeCount) | Tier Shortfall: \(.shortfall)"'
+echo "$PRIORITY_BREAKDOWN" | jq -r '
+  .[] |
+  "  • Priority \(.priorityIndex) (\(.shape), Spot=\(.spot), Reservation=\(.reservation)):\n" +
+  "      Target Floor: \(.targetNodeCount) | Ready Nodes: \(.readyNodeCount) | Tier Shortfall: \(.shortfall)" +
+  (if .minCapProvisioned != null then "\n      CRD Condition: MinCapacityProvisioned=\(.minCapProvisioned.status) (Reason: \(.minCapProvisioned.reason))" else "" end) +
+  (if (.resourceInfo | length) > 0 then "\n      Resource Info: " + ([.resourceInfo[] | "\(.name): \(.currentCount)/\(.targetCount) \(.unit) (\(.currentUtilizationPercentage)% util)"] | join(", ")) else "" end)
+'
 echo ""
 echo "[2] Proactive Scale-Up Telemetry (Cluster Autoscaler Visibility)"
 echo "--------------------------------------------------------------------------------"
 SCALEUP_COUNT=$(echo "$PROACTIVE_SCALEUP_EVENTS" | jq 'length')
 if [[ "$SCALEUP_COUNT" -gt 0 ]]; then
-  echo "$PROACTIVE_SCALEUP_EVENTS" | jq -r '.[] | "  • Event ID: \(.eventId)\n      Target NodePool: \(.nodepool) (Zone: \(.zone)) -> Requested Nodes: +\(.requestedNodes)\n      Triggering Target: \(.syntheticPods | join(", "))"'
+  echo "$PROACTIVE_SCALEUP_EVENTS" | jq -r '.[] | "  • Event ID: \(.eventId)\n      Target NodePool: \(.nodepool) (Zone: \(.zone)) -> Requested Nodes: +\(.requestedNodes)\n      Triggering Target: \(.triggerTargets | join(", "))"'
 else
   echo "  No recent decision.scaleUp events found for proactive minimumCapacity targets."
 fi

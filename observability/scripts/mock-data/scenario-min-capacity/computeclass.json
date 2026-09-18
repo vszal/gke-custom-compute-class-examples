@@ -44,5 +44,44 @@
       "enabled": true
     },
     "whenUnsatisfiable": "DoNotScaleUp"
+  },
+  "status": {
+    "priorityStatuses": [
+      {
+        "identifier": "0",
+        "conditions": [
+          {
+            "type": "MinCapacityProvisioned",
+            "status": "False",
+            "lastTransitionTime": "2026-09-17T20:10:00Z",
+            "reason": "ProvisioningInProgress",
+            "message": "Minimum capacity provisioning is in progress."
+          }
+        ],
+        "resourceInfo": []
+      },
+      {
+        "identifier": "1",
+        "conditions": [
+          {
+            "type": "MinCapacityProvisioned",
+            "status": "True",
+            "lastTransitionTime": "2026-09-17T20:12:00Z",
+            "reason": "ProvisioningComplete",
+            "message": "Minimum capacity provisioning is complete."
+          }
+        ],
+        "resourceInfo": [
+          {
+            "name": "cpu",
+            "unit": "Cores",
+            "currentCount": 96,
+            "targetCount": 96,
+            "currentUtilizationPercentage": 15,
+            "measuredAt": "2026-09-17T20:12:00Z"
+          }
+        ]
+      }
+    ]
   }
 }

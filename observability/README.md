@@ -44,47 +44,63 @@ Example status output during normal operation:
 
 ```yaml
 status:
+  conditions:
+  - type: Health
+    status: "True"
+    reason: Health
+    message: Crd is healthy.
+    lastTransitionTime: "2026-09-18T17:02:57Z"
   priorityStatuses:
   - identifier: "0"
-    configHash: "a7b8c9d0e1"
+    conditions: []
     resourceInfo:
     - name: cpu
-      utilization: "0.75"
-    conditions:
-    - type: NodeProvisioningInProgress
-      status: "False"
-      reason: ProvisioningComplete
-      lastTransitionTime: "2026-09-17T12:00:00Z"
+      unit: Cores
+      currentCount: 2
+      targetCount: 2
+      currentUtilizationPercentage: 16
+      measuredAt: "2026-09-18T17:06:52Z"
+    - name: memory
+      unit: GiB
+      currentCount: 6
+      targetCount: 6
+      currentUtilizationPercentage: 11
+      measuredAt: "2026-09-18T17:06:52Z"
+    scalingEventsHistory:
+      provisionedNodesCount: 1
+      consolidatedNodesCount: 0
+      migratedNodesCount: 0
+      measuredSince: "2026-09-18T17:03:06Z"
+      measuredAt: "2026-09-18T17:06:52Z"
   - identifier: "1"
-    configHash: "f2e3d4c5b6"
     conditions: []
-  - identifier: "2"
-    configHash: "1a2b3c4d5e"
-    conditions: []
+    resourceInfo: []
 ```
 
 ---
 
 ## Provisioning suspended versus provisioning constrained
 
-When GCE encounters capacity constraints or stockouts, GKE sets specific condition types under the affected `status.priorityStatuses[]` entry. Understanding the distinction between these two conditions is essential for capacity management:
+When GCE encounters capacity constraints, quota exhaustion, or stockouts, GKE sets specific condition types under the affected `status.priorityStatuses[]` entry. Understanding the distinction between these conditions is essential for capacity management:
 
 | Condition type | Severity | Scope | Meaning and autoscaler behavior |
 |---|---|---|---|
-| `ProvisioningSuspended` | High | Entire priority tier | The priority tier is completely backed off across all configured zones. The autoscaler will not attempt to scale up this rule until the backoff timer expires. The condition message includes an authoritative timestamp: `until <RFC3339>` (for example, `Provisioning suspended until 2026-09-17T12:35:00Z`). |
-| `ProvisioningConstrained` | Medium | Partial / Zonal | The priority tier has experienced stockouts in one or more zones, but other zones or variations remain obtainable. The autoscaler continues to attempt provisioning in remaining eligible zones. |
-| `NodeProvisioningInProgress` | Informational | Priority tier | The autoscaler has sent an instance creation request to GCE for this priority tier and is waiting for nodes to join the cluster. |
+| `ProvisioningSuspended` | High | Entire priority tier | The priority tier is completely backed off across all configured zones. The autoscaler will not attempt to scale up this rule until the backoff timer expires. Message format: `NodeProvisioning associated with this priority failed due to the <Reason> error. Backing off the priority until YYYY-MM-DD HH:MM:SS UTC.` |
+| `ProvisioningConstrained` | High / Medium | Zonal / NodePool | Node pools associated with this priority failed scale-up in specific zones and entered backoff cooldown. Message format: `NodeProvisioning of the node pools associated with this priority failed due to the <Reason> error. In backoff until YYYY-MM-DD HH:MM:SS UTC.` |
+| `NodeProvisioningInProgress` | Informational | Priority tier | The autoscaler has requested new instances from GCE for this priority tier (`reason: PodPending`, message includes `{NodePool: <pool>, MachineType: <type>, Zones: <zone>}`). Cleared automatically once nodes join as Ready. |
+| `MinCapacityProvisioning` | Informational | Priority tier | Proactive `minimumCapacity.targetNodeCount` node provisioning has started (`reason: ProvisioningStarted`). |
+| `MinCapacityProvisioned` | Informational | Priority tier | Tracks proactive `minimumCapacity.targetNodeCount` fulfillment (`status: "False", reason: ProvisioningInProgress` during scale-up; `status: "True", reason: ProvisioningComplete` once floor is satisfied). |
 | `RuleMisconfigured` | High | Priority tier | The priority configuration contains contradictory or unsupported parameters (such as invalid sysctls or missing accelerator drivers). |
 
 ### Viewing active backoff timers
 
-To check if any priority tier is currently suspended due to stockouts:
+To check if any priority tier is currently suspended or constrained due to stockouts or quota limits:
 
 ```bash
 kubectl get computeclass observability-class -o json | jq -r '
   .status.priorityStatuses[] |
-  select(.conditions[]?.type == "ProvisioningSuspended" and .conditions[]?.status == "True") |
-  "Priority " + .identifier + " suspended: " + (.conditions[] | select(.type=="ProvisioningSuspended") | .message)
+  select(.conditions[]? | (.type == "ProvisioningSuspended" or .type == "ProvisioningConstrained") and .status == "True") |
+  "Priority " + .identifier + " in backoff: " + (.conditions[] | select(.type=="ProvisioningSuspended" or .type=="ProvisioningConstrained") | .message)
 '
 ```
 

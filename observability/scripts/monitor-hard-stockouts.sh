@@ -19,6 +19,7 @@ CCC_NAME=""
 KUBE_CONTEXT=""
 PROJECT_ID=""
 CLUSTER_NAME=""
+LOCATION=""
 MOCK_DIR=""
 OUTPUT_JSON=false
 
@@ -32,6 +33,7 @@ Options:
   --mock <dir>         Path to mock directory containing computeclass.json, visibility-logs.json, pod-events.json
   --project <id>       Google Cloud Project ID (required for live CA visibility log query)
   --cluster <name>     GKE Cluster Name (required for live CA visibility log query)
+  --location <loc>     GKE Cluster Location (region or zone)
   --json               Output structured JSON report
   -h, --help           Show this help message
 EOF
@@ -45,6 +47,7 @@ while [[ $# -gt 0 ]]; do
     --mock) MOCK_DIR="$2"; shift 2 ;;
     --project) PROJECT_ID="$2"; shift 2 ;;
     --cluster) CLUSTER_NAME="$2"; shift 2 ;;
+    --location) LOCATION="$2"; shift 2 ;;
     --json) OUTPUT_JSON=true; shift ;;
     -h|--help) usage ;;
     *) echo "Unknown option: $1" >&2; usage ;;
@@ -169,13 +172,14 @@ if [[ $(echo "$PRIORITY_STATUSES" | jq 'length') -gt 0 ]]; then
   TOTAL_PRIORITIES=$(echo "$PRIORITY_STATUSES" | jq 'length')
   SUSPENDED_RULES=$(echo "$PRIORITY_STATUSES" | jq -c '
     [ .[] |
-      select(any(.conditions[]?; .type == "ProvisioningSuspended" and .status == "True")) |
+      select(any(.conditions[]?; (.type == "ProvisioningSuspended" or .type == "ProvisioningConstrained") and .status == "True")) |
       {
         identifier: .identifier,
         configHash: .configHash,
-        reason: ([.conditions[]? | select(.type == "ProvisioningSuspended") | .reason] | first // "Unknown"),
-        message: ([.conditions[]? | select(.type == "ProvisioningSuspended") | .message] | first // ""),
-        until: ([.conditions[]? | select(.type == "ProvisioningSuspended") | .message | capture("until (?<until>[^.]+)").until] | first // null)
+        conditionType: ([.conditions[]? | select((.type == "ProvisioningSuspended" or .type == "ProvisioningConstrained") and .status == "True") | .type] | first // "ProvisioningSuspended"),
+        reason: ([.conditions[]? | select((.type == "ProvisioningSuspended" or .type == "ProvisioningConstrained") and .status == "True") | .reason] | first // "Unknown"),
+        message: ([.conditions[]? | select((.type == "ProvisioningSuspended" or .type == "ProvisioningConstrained") and .status == "True") | .message] | first // ""),
+        until: ([.conditions[]? | select((.type == "ProvisioningSuspended" or .type == "ProvisioningConstrained") and .status == "True") | .message | capture("until (?<until>[^.]+)").until] | first // null)
       }
     ]
   ')
@@ -194,7 +198,7 @@ if [[ $(echo "$PRIORITY_STATUSES" | jq 'length') -gt 0 ]]; then
   ACTIVE_RULES=$(echo "$PRIORITY_STATUSES" | jq -c '
     [ .[] |
       select(
-        (any(.conditions[]?; .type == "ProvisioningSuspended" and .status == "True") | not) and
+        (any(.conditions[]?; (.type == "ProvisioningSuspended" or .type == "ProvisioningConstrained") and .status == "True") | not) and
         (any(.conditions[]?; .type == "RuleMisconfigured" and .status == "True") | not)
       )
     ]
@@ -239,6 +243,7 @@ else
       to_entries | map({
         identifier: (.key | tostring),
         configHash: "live-inferred",
+        conditionType: "ProvisioningSuspended",
         reason: (if (.value.reservations // .value.reservationAffinity) then "ReservationCapacityExhausted" else "UnsatisfiablePriorityRule" end),
         message: ("Spec rule " + (.value | tostring) + " failed scale-up. Latest CA Event: " + $msg),
         until: "Active CA Cooldown"
@@ -258,6 +263,8 @@ fi
 # Check hard stockout condition:
 IS_HARD_STOCKOUT=false
 if [[ "$TOTAL_PRIORITIES" -gt 0 && "$ACTIVE_COUNT" -eq 0 ]]; then
+  IS_HARD_STOCKOUT=true
+elif [[ "$WHEN_UNSATISFIABLE" == "DoNotScaleUp" && "$UNHANDLED_POD_COUNT" -gt 0 && "$FAILED_SCALEUP_COUNT" -gt 0 ]]; then
   IS_HARD_STOCKOUT=true
 fi
 

@@ -36,7 +36,7 @@
             "status": "True",
             "lastTransitionTime": "2026-09-17T20:30:00Z",
             "reason": "OutOfResources",
-            "message": "NodeProvisioning associated with this priority failed due to the OutOfResources error. Backing off the priority until 2026-09-17T20:50:00Z."
+            "message": "NodeProvisioning associated with this priority failed due to the OutOfResources error. Backing off the priority until 2026-09-17 20:50:00 UTC."
           }
         ],
         "resourceInfo": [
@@ -62,11 +62,11 @@
         "configHash": "ee289a441c2b",
         "conditions": [
           {
-            "type": "ProvisioningSuspended",
+            "type": "ProvisioningConstrained",
             "status": "True",
             "lastTransitionTime": "2026-09-17T20:32:00Z",
-            "reason": "OutOfResources",
-            "message": "NodeProvisioning associated with this priority failed due to the OutOfResources error. Backing off the priority until 2026-09-17T20:42:00Z."
+            "reason": "QuotaExceeded",
+            "message": "NodeProvisioning of the node pools associated with this priority failed due to the QuotaExceeded error. In backoff until 2026-09-17 20:42:00 UTC."
           }
         ],
         "resourceInfo": [

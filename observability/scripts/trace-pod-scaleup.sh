@@ -178,28 +178,44 @@ fi
 
 # Analyze skipped and winning priorities
 if [[ $(echo "$PRIORITY_STATUSES" | jq 'length') -gt 0 ]]; then
-  SKIPPED_PRIORITIES=$(echo "$PRIORITY_STATUSES" | jq -c '
+  WINNING_PRIORITY=$(echo "$PRIORITY_STATUSES" | jq -c --arg nodeIdx "$NODE_ANNOTATION_INDEX" '
+    (
+      # 1. If a priority currently has NodeProvisioningInProgress == True, select it
+      ([ .[] | select(any(.conditions[]?; .type == "NodeProvisioningInProgress" and .status == "True")) ] | first) //
+      # 2. If the pod is already bound to a node with ccc_priority_index, match that priority status entry
+      (if $nodeIdx != "" then ([ .[] | select(.identifier == $nodeIdx) ] | first) else null end) //
+      # 3. Otherwise select the first priority not currently suspended/constrained/misconfigured
+      ([ .[] | select((any(.conditions[]?; (.type == "ProvisioningSuspended" or .type == "ProvisioningConstrained" or .type == "RuleMisconfigured") and .status == "True") | not)) ] | first)
+    ) // empty
+  ')
+  WINNING_IDENTIFIER=$(echo "$WINNING_PRIORITY" | jq -r '.identifier // empty')
+
+  SKIPPED_PRIORITIES=$(echo "$PRIORITY_STATUSES" | jq -c --arg winId "$WINNING_IDENTIFIER" '
     [ .[] |
-      select(any(.conditions[]?; (.type == "ProvisioningSuspended" or .type == "RuleMisconfigured") and .status == "True")) |
+      select(
+        any(.conditions[]?; (.type == "ProvisioningSuspended" or .type == "ProvisioningConstrained" or .type == "RuleMisconfigured") and .status == "True") or
+        (($winId | tonumber? // -1) > (.identifier | tonumber? // 999999))
+      ) |
+      select(.identifier != $winId) |
       {
         identifier: .identifier,
         configHash: .configHash,
-        suspendedCondition: ([.conditions[]? | select(.type == "ProvisioningSuspended")] | first // null),
-        misconfiguredCondition: ([.conditions[]? | select(.type == "RuleMisconfigured")] | first // null),
-        backoffUntil: ([.conditions[]? | select(.type == "ProvisioningSuspended") | .message | capture("until (?<until>[^.]+)").until] | first // null)
+        conditionType: ([.conditions[]? | select((.type == "ProvisioningSuspended" or .type == "ProvisioningConstrained" or .type == "RuleMisconfigured") and .status == "True") | .type] | first // "HistoricalCooldownExpired"),
+        suspendedCondition: (
+          ([.conditions[]? | select((.type == "ProvisioningSuspended" or .type == "ProvisioningConstrained") and .status == "True")] | first) //
+          (if (($winId | tonumber? // -1) > (.identifier | tonumber? // 999999)) then {
+            reason: "CooldownExpiredSinceScaleUp",
+            message: ("Priority \"" + .identifier + "\" was skipped during scale-up (provisionedNodesCount=" + ((.scalingEventsHistory.provisionedNodesCount // 0) | tostring) + "); backoff cooldown has since expired and conditions[] cleared.")
+          } else null end)
+        ),
+        misconfiguredCondition: ([.conditions[]? | select(.type == "RuleMisconfigured" and .status == "True")] | first // null),
+        backoffUntil: (
+          ([.conditions[]? | select((.type == "ProvisioningSuspended" or .type == "ProvisioningConstrained") and .status == "True") | .message | capture("until (?<until>[^.]+)").until] | first) //
+          "Expired (conditions[] cleared)"
+        )
       }
     ]
   ')
-
-  WINNING_PRIORITY=$(echo "$PRIORITY_STATUSES" | jq -c '
-    [ .[] |
-      select(
-        any(.conditions[]?; .type == "NodeProvisioningInProgress" and .status == "True") or
-        (any(.conditions[]?; .type == "ProvisioningSuspended" and .status == "True") | not)
-      )
-    ] | first // empty
-  ')
-  WINNING_IDENTIFIER=$(echo "$WINNING_PRIORITY" | jq -r '.identifier // empty')
 else
   # Pre-Rollout Live Inference Mode: infer winning priority index from nodepool name / node labels vs spec.priorities
   STATUS_MODE="Pre-Rollout Live Inference (spec.priorities + CA Visibility + Node Labels)"
