@@ -151,11 +151,11 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 4. Inspect Synthetic Placeholder Pods (min-nodes-fake-*) in CA Visibility Logs
+# 4. Inspect Synthetic Placeholder Pods in CA Visibility Logs
 # ------------------------------------------------------------------------------
 PROACTIVE_SCALEUP_EVENTS=$(echo "$LOGS_JSON" | jq --arg ccc "$CCC_NAME" '
   [ .[]? | select(.decision.scaleUp != null) |
-    select(.decision.scaleUp.triggeringPods[]? | (.controller.name == $ccc or (.name | test("^min-nodes-fake-")))) |
+    select(.decision.scaleUp.triggeringPods[]? | (.controller.name == $ccc)) |
     {
       eventId: .decision.eventId,
       decideTime: .decision.decideTime,
@@ -169,7 +169,7 @@ PROACTIVE_SCALEUP_EVENTS=$(echo "$LOGS_JSON" | jq --arg ccc "$CCC_NAME" '
 SHORTFALL_NO_SCALEUP_EVENTS=$(echo "$LOGS_JSON" | jq --arg ccc "$CCC_NAME" '
   [ .[]? | select(.noDecisionStatus.noScaleUp != null) |
     .noDecisionStatus.noScaleUp.unhandledPodGroups[]? |
-    select(.podGroup.samplePod.controller.name == $ccc or (.podGroup.samplePod.name | test("^min-nodes-fake-"))) |
+    select(.podGroup.samplePod.controller.name == $ccc) |
     {
       samplePod: .podGroup.samplePod.name,
       unhandledPodCount: .podGroup.totalPodCount,

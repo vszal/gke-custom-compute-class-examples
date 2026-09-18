@@ -1,0 +1,37 @@
+{
+  "apiVersion": "v1",
+  "kind": "NodeList",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "Node",
+      "metadata": {
+        "name": "gke-ml-cluster-nap-g2-96-a81d-node-1",
+        "annotations": {
+          "ccc_priority_index": "1",
+          "cluster-autoscaler.kubernetes.io/scale-down-disabled": "false",
+          "node.gke.io/last-applied-spatial-layout": "compact"
+        },
+        "labels": {
+          "cloud.google.com/compute-class": "ml-h100-profile",
+          "cloud.google.com/gke-accelerator": "nvidia-l4",
+          "cloud.google.com/gke-nodepool": "nap-g2-96-a81d",
+          "cloud.google.com/machine-family": "g2",
+          "failure-domain.beta.kubernetes.io/zone": "us-central1-a",
+          "kubernetes.io/hostname": "gke-ml-cluster-nap-g2-96-a81d-node-1"
+        }
+      },
+      "status": {
+        "conditions": [
+          {
+            "type": "Ready",
+            "status": "True",
+            "lastTransitionTime": "2026-09-17T20:33:00Z",
+            "reason": "KubeletReady",
+            "message": "kubelet is posting ready status"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+[
+  {
+    "decision": {
+      "eventId": "scaleup-mincap-001",
+      "decideTime": "1789684578",
+      "scaleUp": {
+        "increasedMigs": [
+          {
+            "mig": {
+              "name": "nap-tpu-v5-spot-mig-0",
+              "nodepool": "nap-tpu-v5-spot",
+              "zone": "us-central1-a"
+            },
+            "requestedNodes": 1
+          }
+        ],
+        "triggeringPods": [
+          {
+            "controller": {
+              "apiVersion": "autoscaling.gke.io/v1",
+              "kind": "ComputeClass",
+              "name": "meta-tpu-serving-ccc"
+            },
+            "name": "min-capacity-priority-pod-meta-tpu-serving-ccc-1-0",
+            "namespace": "kube-system"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "noDecisionStatus": {
+      "measureTime": "1789684600",
+      "noScaleUp": {
+        "unhandledPodGroups": [
+          {
+            "podGroup": {
+              "samplePod": {
+                "controller": {
+                  "apiVersion": "autoscaling.gke.io/v1",
+                  "kind": "ComputeClass",
+                  "name": "meta-tpu-serving-ccc"
+                },
+                "name": "min-capacity-priority-pod-meta-tpu-serving-ccc-0-1",
+                "namespace": "kube-system"
+              },
+              "totalPodCount": 2
+            },
+            "napFailureReasons": [
+              {
+                "messageId": "no.scale.up.nap.pod.zonal.reservation.exhausted"
+              }
+            ],
+            "rejectedMigs": [
+              {
+                "mig": {
+                  "name": "nap-tpu-v5-res-a-mig",
+                  "nodepool": "nap-tpu-v5-res-a",
+                  "zone": "us-central1-a"
+                },
+                "reason": {
+                  "messageId": "no.scale.up.mig.failing.predicate"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "noDecisionStatus": {
+      "measureTime": "1789684610",
+      "noScaleDown": {
+        "nodes": [
+          {
+            "nodeName": "gke-cls-nap-tpu-res-a-node-01",
+            "reason": {
+              "messageId": "no.scale.down.node.no.place.to.move.pods"
+            }
+          }
+        ]
+      }
+    }
+  }
+]

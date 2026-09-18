@@ -1,15 +1,15 @@
-# GKE ComputeClass Examples Validation Results
+# GKE ComputeClass examples validation results
 
 This report compiles the validation results, configurations, and staged fixes for all GKE ComputeClass example manifests across the workspace.
 
-### Validation Metadata
+### Validation metadata
 - **Last Updated:** September 17, 2026 · **Git Commit (Shorthash):** `06b8e5e`
 - **Latest run (September 17, 2026):** validated **observability** (new example for GKE 1.36.4+ observability and traceability) via **server-side** dry-run (`kubectl apply --dry-run=server`) and live CRD acceptance on GKE `1.36.4-gke.1082000`. Also executed the full 4-step `AGENTS.md` validation routine across the entire repository (all 22 ComputeClasses applied and cleaned up cleanly; all workload manifests passed `--dry-run=server` with 0 failures). **Result: PASS ✅** (live server dry-run).
 
 - **Prior run (July 31, 2026):** validated **capacity-quota** (new example for CapacityQuota feature) via **server-side** dry-run (`kubectl apply --dry-run=server`) and schema validation on GKE `1.36.2-gke.2064000+`. Also executed the full 4-step `AGENTS.md` validation routine across the entire repository (all 21 ComputeClasses applied and cleaned up cleanly; all workload manifests passed `--dry-run=server`). **Result: PASS ✅** (live server dry-run).
 
 - **Prior run (July 13, 2026, commit `e383bd9`):** validated **balanced-reservations**, **stateful-db**, and **gpu-accelerator** (AnyThenFail feature documentation) via **client-side** dry-run (`kubectl apply --dry-run=client` + syntax check). Server-side not run that session due to restricted local kube credentials. **Result: PASS ⚠️** (client-side only).
-- **Prior run (June 18, 2026):** validated **restrict-usage** (new) live on `gke_vsz-demo_us-central1_ccc-accel` (GKE 1.35.5-gke.1163000) — applied class + `restricted-demo` ns + RBAC + VAP, ran **server-side** dry-runs, then cleaned up (cluster verified pristine). RBAC/VAP files sit outside the standard class/workload globs and were applied/removed manually per the folder README. **Result: PASS** ✅ — compliant workload admitted; all three consumption paths (nodeSelector, nodeAffinity, wildcard toleration) **denied**; `apps/v1` Deployment controller **denied** (confirms `spec.template.spec` extraction + multi-kind `matchConstraints`); out-of-scope namespace **admitted** (binding `namespaceSelector` scoping); RBAC `auth can-i` → bound editor group `yes` on create/update/delete, non-member `no`. Note: `rbac-editor.yaml` ships the literal `<GROUP_DOMAIN>` placeholder — verification impersonated the as-applied group; users replace it before deploy.
+- **Prior run (June 18, 2026):** validated **restrict-usage** (new) live on `gke-us-central1-ccc-accel` (GKE 1.35.5-gke.1163000) — applied class + `restricted-demo` ns + RBAC + VAP, ran **server-side** dry-runs, then cleaned up (cluster verified pristine). RBAC/VAP files sit outside the standard class/workload globs and were applied/removed manually per the folder README. **Result: PASS** ✅ — compliant workload admitted; all three consumption paths (nodeSelector, nodeAffinity, wildcard toleration) **denied**; `apps/v1` Deployment controller **denied** (confirms `spec.template.spec` extraction + multi-kind `matchConstraints`); out-of-scope namespace **admitted** (binding `namespaceSelector` scoping); RBAC `auth can-i` → bound editor group `yes` on create/update/delete, non-member `no`. Note: `rbac-editor.yaml` ships the literal `<GROUP_DOMAIN>` placeholder — verification impersonated the as-applied group; users replace it before deploy.
 - **Prior run (June 11, 2026, commit `94816f2`):** re-validated **stateful-db** only (dynamic-rwo doc/comment additions; manifests structurally unchanged) via **client-side** dry-run (`kubectl apply --dry-run=client`) + YAML schema lint — server-side not run that session.
 - **Carry-forward:** rows 1–7 and 9–19 retain their **PASS** from the server dry-run at `f77dd08` (June 10, 2026); they were not re-run on July 13.
 
@@ -18,7 +18,7 @@ This report compiles the validation results, configurations, and staged fixes fo
 
 ---
 
-## Validation Summary Table
+## Validation summary table
 
 | # | Folder | Status | Files Checked | Issues / Staged Fixes | Notes & Best Practices |
 |---|---|---|---|---|---|
@@ -43,7 +43,7 @@ This report compiles the validation results, configurations, and staged fixes fo
 | 19 | **hybrid-pools** | **PASS** ✅ | `hybrid-pools-class.yaml`<br>`hybrid-pools-deploy.yaml` | None | Curated manual node pools are specified on top using intent-based (rather than name-wired) priority rules, falling back underneath to auto-provisioned capacity for obtainability. |
 | 20 | **restrict-usage** | **PASS** ✅ (live server dry-run) | `restricted-class.yaml`<br>`rbac-editor.yaml`<br>`restrict-usage-vap.yaml`<br>`allowed-deploy.yaml` | None | Two-layer governance. VAP denies all three consumption paths (nodeSelector / nodeAffinity / wildcard toleration) across Pods and `apps/v1` controllers; namespace scoping via binding `namespaceSelector` confirmed (out-of-scope ns admitted). RBAC `ClusterRole` (cluster-scoped CRD) restricts create/update/patch/delete to the bound group. Placeholder `<GROUP_DOMAIN>` must be set before deploy. |
 | 21 | **capacity-quota** | **PASS** ✅ (server dry-run) | `quota-class.yaml`<br>`quota-limit.yaml`<br>`quota-deploy.yaml` | None | Demonstrates an advanced priority fallback spillover scenario where `n4` is capped at an 8 CPU limit via `CapacityQuota` (`autoscaling.x-k8s.io/v1beta1`), automatically spilling over excess workload demand to uncapped fallback Generation 4 machine families (`n4d` and `c4`). Verified via live server-side dry-run on GKE 1.36.2-gke.2064000+. |
-| 22 | **observability** | **PASS** ✅ (server dry-run) | `observability-class.yaml`<br>`observability-deploy.yaml`<br>`scripts/trace-pod-scaleup.sh`<br>`scripts/monitor-hard-stockouts.sh` | None | Multi-priority class (Spot n4 -> On-Demand n4 -> On-Demand c4) with `whenUnsatisfiable: DoNotScaleUp`. Validates full end-to-end traceability contract: mapping `status.priorityStatuses[].identifier` ("0", "1", "2", "ScaleUpAnyway"), `ProvisioningSuspended` (full tier backoff with `until <RFC3339>`) vs `ProvisioningConstrained` (partial/zonal), node placement verification (`ccc_priority_index`: "0", "1", "ccc_scale_up_anyway", "ccc_no_rule_matching", "ccc_deleted"), and hard stockout monitoring. Verified via live server-side dry-run on GKE 1.36.4-gke.1082000. |
+| 22 | **observability** | **PASS** ✅ (server dry-run) | `observability-class.yaml`<br>`observability-deploy.yaml`<br>`scripts/trace-pod-scaleup.sh`<br>`scripts/monitor-hard-stockouts.sh`<br>`scripts/verify-minimum-capacity.sh` | None | Multi-priority class (Spot n4 -> On-Demand n4 -> On-Demand c4) with `whenUnsatisfiable: DoNotScaleUp`. Validates full end-to-end traceability contract: mapping `status.priorityStatuses[].identifier` ("0", "1", "2", "ScaleUpAnyway"), `ProvisioningSuspended` (full tier backoff with `until <RFC3339>`) vs `ProvisioningConstrained` (partial/zonal), node placement verification (`ccc_priority_index`: "0", "1", "ccc_scale_up_anyway", "ccc_no_rule_matching", "ccc_deleted"), and hard stockout monitoring. Verified via live server-side dry-run on GKE 1.36.4-gke.1082000. |
 
 
 

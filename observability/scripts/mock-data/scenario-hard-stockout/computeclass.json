@@ -1,0 +1,92 @@
+{
+  "apiVersion": "cloud.google.com/v1",
+  "kind": "ComputeClass",
+  "metadata": {
+    "name": "gpu-batch-profile",
+    "generation": 4
+  },
+  "spec": {
+    "priorities": [
+      {
+        "machineFamily": "a3-highgpu-8g"
+      },
+      {
+        "machineFamily": "g2-standard-48"
+      }
+    ],
+    "whenUnsatisfiable": "DoNotScaleUp"
+  },
+  "status": {
+    "conditions": [
+      {
+        "type": "Health",
+        "status": "True",
+        "lastTransitionTime": "2026-09-17T20:00:00Z",
+        "reason": "Healthy",
+        "message": "ComputeClass is healthy and validating rules."
+      }
+    ],
+    "priorityStatuses": [
+      {
+        "identifier": "0",
+        "configHash": "f83b1029da11",
+        "conditions": [
+          {
+            "type": "ProvisioningSuspended",
+            "status": "True",
+            "lastTransitionTime": "2026-09-17T20:30:00Z",
+            "reason": "OutOfResources",
+            "message": "NodeProvisioning associated with this priority failed due to the OutOfResources error. Backing off the priority until 2026-09-17T20:50:00Z."
+          }
+        ],
+        "resourceInfo": [
+          {
+            "name": "nvidia.com/gpu",
+            "unit": "Cards",
+            "currentCount": 0,
+            "targetCount": 0,
+            "currentUtilizationPercentage": 0,
+            "measuredAt": "2026-09-17T20:30:00Z"
+          }
+        ],
+        "scalingEventsHistory": {
+          "provisionedNodesCount": 0,
+          "consolidatedNodesCount": 0,
+          "migratedNodesCount": 0,
+          "measuredAt": "2026-09-17T20:30:00Z",
+          "measuredSince": "2026-09-17T12:00:00Z"
+        }
+      },
+      {
+        "identifier": "1",
+        "configHash": "ee289a441c2b",
+        "conditions": [
+          {
+            "type": "ProvisioningSuspended",
+            "status": "True",
+            "lastTransitionTime": "2026-09-17T20:32:00Z",
+            "reason": "OutOfResources",
+            "message": "NodeProvisioning associated with this priority failed due to the OutOfResources error. Backing off the priority until 2026-09-17T20:42:00Z."
+          }
+        ],
+        "resourceInfo": [
+          {
+            "name": "nvidia.com/gpu",
+            "unit": "Cards",
+            "currentCount": 0,
+            "targetCount": 0,
+            "currentUtilizationPercentage": 0,
+            "measuredAt": "2026-09-17T20:32:00Z"
+          }
+        ],
+        "scalingEventsHistory": {
+          "provisionedNodesCount": 0,
+          "consolidatedNodesCount": 0,
+          "migratedNodesCount": 0,
+          "measuredAt": "2026-09-17T20:32:00Z",
+          "measuredSince": "2026-09-17T12:00:00Z"
+        }
+      }
+    ]
+  }
+}

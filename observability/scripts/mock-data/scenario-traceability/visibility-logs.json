@@ -1,0 +1,45 @@
+[
+  {
+    "insertId": "ca-viz-log-990182",
+    "timestamp": "2026-09-17T20:31:05.123456Z",
+    "logName": "projects/my-ml-project/logs/container.googleapis.com%2Fcluster-autoscaler-visibility",
+    "resource": {
+      "type": "k8s_cluster",
+      "labels": {
+        "cluster_name": "ml-cluster-us-central1",
+        "location": "us-central1-a",
+        "project_id": "my-ml-project"
+      }
+    },
+    "jsonPayload": {
+      "decision": {
+        "decideTime": 1789677065,
+        "eventId": "scaleup-evt-c4a2e1-88f1",
+        "scaleUp": {
+          "triggeringPodsTotalCount": 1,
+          "triggeringPods": [
+            {
+              "name": "worker-job-8x",
+              "namespace": "ml-workloads",
+              "controller": {
+                "apiVersion": "batch/v1",
+                "kind": "Job",
+                "name": "worker-job"
+              }
+            }
+          ],
+          "increasedMigs": [
+            {
+              "mig": {
+                "name": "gke-ml-cluster-nap-g2-96-a81d-grp",
+                "nodepool": "nap-g2-96-a81d",
+                "zone": "us-central1-a"
+              },
+              "requestedNodes": 1
+            }
+          ]
+        }
+      }
+    }
+  }
+]

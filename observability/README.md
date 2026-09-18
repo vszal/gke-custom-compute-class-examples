@@ -20,6 +20,7 @@ The configuration in this folder defines a cost-effective, multi-tier ladder:
 - [observability-deploy.yaml](./observability-deploy.yaml): A sample Deployment requesting `cloud.google.com/compute-class: observability-class`.
 - [scripts/trace-pod-scaleup.sh](./scripts/trace-pod-scaleup.sh): Helper script to trace the path from a pending pod to its allocated node.
 - [scripts/monitor-hard-stockouts.sh](./scripts/monitor-hard-stockouts.sh): Helper script to monitor stockout events and backoff timers.
+- [scripts/verify-minimum-capacity.sh](./scripts/verify-minimum-capacity.sh): Helper script to audit proactive minimumCapacity floor fulfillment and shortfall events.
 
 ---
 

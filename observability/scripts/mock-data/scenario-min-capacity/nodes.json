@@ -1,0 +1,45 @@
+{
+  "items": [
+    {
+      "metadata": {
+        "name": "gke-cls-nap-tpu-res-a-node-01",
+        "labels": {
+          "cloud.google.com/compute-class": "meta-tpu-serving-ccc",
+          "cloud.google.com/gke-spot": "false",
+          "cloud.google.com/reservation-name": "gsc-tpu-cube-res-a"
+        },
+        "annotations": {
+          "ccc_priority_index": "0"
+        }
+      },
+      "status": {
+        "conditions": [
+          {
+            "type": "Ready",
+            "status": "True"
+          }
+        ]
+      }
+    },
+    {
+      "metadata": {
+        "name": "gke-cls-nap-tpu-spot-node-02",
+        "labels": {
+          "cloud.google.com/compute-class": "meta-tpu-serving-ccc",
+          "cloud.google.com/gke-spot": "true"
+        },
+        "annotations": {
+          "ccc_priority_index": "1"
+        }
+      },
+      "status": {
+        "conditions": [
+          {
+            "type": "Ready",
+            "status": "True"
+          }
+        ]
+      }
+    }
+  ]
+}

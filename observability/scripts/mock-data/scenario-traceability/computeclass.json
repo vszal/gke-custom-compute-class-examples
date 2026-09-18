@@ -1,0 +1,92 @@
+{
+  "apiVersion": "cloud.google.com/v1",
+  "kind": "ComputeClass",
+  "metadata": {
+    "name": "ml-h100-profile",
+    "generation": 2
+  },
+  "spec": {
+    "priorities": [
+      {
+        "machineFamily": "a3-highgpu-8g"
+      },
+      {
+        "machineFamily": "g2-standard-96"
+      }
+    ],
+    "whenUnsatisfiable": "DoNotScaleUp"
+  },
+  "status": {
+    "conditions": [
+      {
+        "type": "Health",
+        "status": "True",
+        "lastTransitionTime": "2026-09-17T20:00:00Z",
+        "reason": "Healthy",
+        "message": "ComputeClass is healthy and validating rules."
+      }
+    ],
+    "priorityStatuses": [
+      {
+        "identifier": "0",
+        "configHash": "a1f9e283cb7d",
+        "conditions": [
+          {
+            "type": "ProvisioningSuspended",
+            "status": "True",
+            "lastTransitionTime": "2026-09-17T20:30:00Z",
+            "reason": "OutOfResources",
+            "message": "NodeProvisioning associated with this priority failed due to the OutOfResources error. Backing off the priority until 2026-09-17T20:45:00Z."
+          }
+        ],
+        "resourceInfo": [
+          {
+            "name": "nvidia.com/gpu",
+            "unit": "Cards",
+            "currentCount": 0,
+            "targetCount": 0,
+            "currentUtilizationPercentage": 0,
+            "measuredAt": "2026-09-17T20:30:00Z"
+          }
+        ],
+        "scalingEventsHistory": {
+          "provisionedNodesCount": 0,
+          "consolidatedNodesCount": 0,
+          "migratedNodesCount": 0,
+          "measuredAt": "2026-09-17T20:30:00Z",
+          "measuredSince": "2026-09-17T12:00:00Z"
+        }
+      },
+      {
+        "identifier": "1",
+        "configHash": "c8d4e721fe90",
+        "conditions": [
+          {
+            "type": "NodeProvisioningInProgress",
+            "status": "True",
+            "lastTransitionTime": "2026-09-17T20:31:00Z",
+            "reason": "PodPending",
+            "message": "Node provisioning initiated for 1 node(s) to satisfy pending pods."
+          }
+        ],
+        "resourceInfo": [
+          {
+            "name": "nvidia.com/gpu",
+            "unit": "Cards",
+            "currentCount": 8,
+            "targetCount": 8,
+            "currentUtilizationPercentage": 100,
+            "measuredAt": "2026-09-17T20:31:00Z"
+          }
+        ],
+        "scalingEventsHistory": {
+          "provisionedNodesCount": 1,
+          "consolidatedNodesCount": 0,
+          "migratedNodesCount": 0,
+          "measuredAt": "2026-09-17T20:31:00Z",
+          "measuredSince": "2026-09-17T12:00:00Z"
+        }
+      }
+    ]
+  }
+}

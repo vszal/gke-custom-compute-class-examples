@@ -1,0 +1,65 @@
+[
+  {
+    "insertId": "ca-viz-log-hard-stockout-9912",
+    "timestamp": "2026-09-17T20:35:00.654321Z",
+    "logName": "projects/my-ml-project/logs/container.googleapis.com%2Fcluster-autoscaler-visibility",
+    "resource": {
+      "type": "k8s_cluster",
+      "labels": {
+        "cluster_name": "ml-cluster-us-central1",
+        "location": "us-central1-a",
+        "project_id": "my-ml-project"
+      }
+    },
+    "jsonPayload": {
+      "noDecisionStatus": {
+        "measureTime": 1789677300,
+        "noScaleUp": {
+          "reason": {
+            "messageId": "no.scale.up.in.backoff"
+          },
+          "unhandledPodGroupsTotalCount": 1,
+          "unhandledPodGroups": [
+            {
+              "podGroup": {
+                "samplePod": {
+                  "name": "batch-worker-0",
+                  "namespace": "batch-jobs",
+                  "controller": {
+                    "apiVersion": "batch/v1",
+                    "kind": "Job",
+                    "name": "batch-job"
+                  }
+                },
+                "totalPodCount": 12
+              },
+              "rejectedMigs": [],
+              "skippedMigs": [
+                {
+                  "mig": {
+                    "name": "gke-ml-cluster-nap-a3-8g-b12a-grp",
+                    "nodepool": "nap-a3-8g-b12a",
+                    "zone": "us-central1-a"
+                  },
+                  "reason": {
+                    "messageId": "mig.in.backoff"
+                  }
+                },
+                {
+                  "mig": {
+                    "name": "gke-ml-cluster-nap-g2-48-f44c-grp",
+                    "nodepool": "nap-g2-48-f44c",
+                    "zone": "us-central1-a"
+                  },
+                  "reason": {
+                    "messageId": "mig.in.backoff"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+]

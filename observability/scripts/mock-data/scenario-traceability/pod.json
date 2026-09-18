@@ -1,0 +1,33 @@
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "worker-job-8x",
+    "namespace": "ml-workloads",
+    "uid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "labels": {
+      "app": "distributed-training",
+      "job-name": "worker-job"
+    }
+  },
+  "spec": {
+    "nodeSelector": {
+      "cloud.google.com/compute-class": "ml-h100-profile"
+    },
+    "nodeName": "gke-ml-cluster-nap-g2-96-a81d-node-1",
+    "containers": [
+      {
+        "name": "trainer",
+        "image": "gcr.io/my-project/trainer:v2",
+        "resources": {
+          "limits": {
+            "nvidia.com/gpu": "8"
+          }
+        }
+      }
+    ]
+  },
+  "status": {
+    "phase": "Running"
+  }
+}

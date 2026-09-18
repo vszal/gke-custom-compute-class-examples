@@ -1,0 +1,48 @@
+{
+  "apiVersion": "cloud.google.com/v1",
+  "kind": "ComputeClass",
+  "metadata": {
+    "name": "meta-tpu-serving-ccc"
+  },
+  "spec": {
+    "minimumCapacity": {
+      "targetNodeCount": 4
+    },
+    "priorities": [
+      {
+        "tpu": {
+          "type": "tpu-v5-lite-podslice",
+          "count": 4,
+          "topology": "2x2"
+        },
+        "spot": false,
+        "reservations": {
+          "affinity": "Specific",
+          "specific": [
+            {
+              "name": "gsc-tpu-cube-res-a"
+            }
+          ]
+        },
+        "minimumCapacity": {
+          "targetNodeCount": 3
+        }
+      },
+      {
+        "tpu": {
+          "type": "tpu-v5-lite-podslice",
+          "count": 4,
+          "topology": "2x2"
+        },
+        "spot": true,
+        "minimumCapacity": {
+          "targetNodeCount": 1
+        }
+      }
+    ],
+    "nodePoolAutoCreation": {
+      "enabled": true
+    },
+    "whenUnsatisfiable": "DoNotScaleUp"
+  }
+}

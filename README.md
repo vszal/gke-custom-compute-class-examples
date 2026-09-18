@@ -1,4 +1,4 @@
-# GKE Custom Compute Class Examples
+# GKE custom ComputeClass examples
 
 Example configurations for Google Kubernetes Engine's **custom compute class**
 feature. See the [custom compute class documentation](https://cloud.google.com/kubernetes-engine/docs/concepts/about-custom-compute-classes)
