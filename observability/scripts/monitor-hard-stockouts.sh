@@ -175,7 +175,6 @@ if [[ $(echo "$PRIORITY_STATUSES" | jq 'length') -gt 0 ]]; then
       select(any(.conditions[]?; (.type == "ProvisioningSuspended" or .type == "ProvisioningConstrained") and .status == "True")) |
       {
         identifier: .identifier,
-        configHash: .configHash,
         conditionType: ([.conditions[]? | select((.type == "ProvisioningSuspended" or .type == "ProvisioningConstrained") and .status == "True") | .type] | first // "ProvisioningSuspended"),
         reason: ([.conditions[]? | select((.type == "ProvisioningSuspended" or .type == "ProvisioningConstrained") and .status == "True") | .reason] | first // "Unknown"),
         message: ([.conditions[]? | select((.type == "ProvisioningSuspended" or .type == "ProvisioningConstrained") and .status == "True") | .message] | first // ""),
@@ -242,7 +241,6 @@ else
     SUSPENDED_RULES=$(echo "$SPEC_PRIORITIES" | jq -c --arg msg "$SAMPLE_EVENT_MSG" '
       to_entries | map({
         identifier: (.key | tostring),
-        configHash: "live-inferred",
         conditionType: "ProvisioningSuspended",
         reason: (if (.value.reservations // .value.reservationAffinity) then "ReservationCapacityExhausted" else "UnsatisfiablePriorityRule" end),
         message: ("Spec rule " + (.value | tostring) + " failed scale-up. Latest CA Event: " + $msg),

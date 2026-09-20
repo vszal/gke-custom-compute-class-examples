@@ -199,7 +199,6 @@ if [[ $(echo "$PRIORITY_STATUSES" | jq 'length') -gt 0 ]]; then
       select(.identifier != $winId) |
       {
         identifier: .identifier,
-        configHash: .configHash,
         conditionType: ([.conditions[]? | select((.type == "ProvisioningSuspended" or .type == "ProvisioningConstrained" or .type == "RuleMisconfigured") and .status == "True") | .type] | first // "HistoricalCooldownExpired"),
         suspendedCondition: (
           ([.conditions[]? | select((.type == "ProvisioningSuspended" or .type == "ProvisioningConstrained") and .status == "True")] | first) //
@@ -239,7 +238,6 @@ else
     SKIPPED_PRIORITIES=$(echo "$SPEC_PRIORITIES" | jq -c --argjson win "$WINNING_IDENTIFIER" '
       to_entries | map(select(.key < $win) | {
         identifier: (.key | tostring),
-        configHash: "live-inferred",
         suspendedCondition: {
           reason: (if (.value.reservations // .value.reservationAffinity) then "SpecificReservationUnsatisfied" else "OutOfResourcesOrUnsatisfied" end),
           message: ("Priority index " + (.key | tostring) + " (" + (.value | tostring) + ") skipped by Cluster Autoscaler in favor of Priority " + ($win | tostring))

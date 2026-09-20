@@ -23,13 +23,12 @@
         "status": "True",
         "lastTransitionTime": "2026-09-17T20:00:00Z",
         "reason": "Healthy",
-        "message": "ComputeClass is healthy and validating rules."
+        "message": "Crd is healthy."
       }
     ],
     "priorityStatuses": [
       {
         "identifier": "0",
-        "configHash": "a1f9e283cb7d",
         "conditions": [
           {
             "type": "ProvisioningSuspended",
@@ -59,7 +58,6 @@
       },
       {
         "identifier": "1",
-        "configHash": "c8d4e721fe90",
         "conditions": [
           {
             "type": "NodeProvisioningInProgress",

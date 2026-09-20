@@ -32,12 +32,16 @@ Starting with GKE `1.36.4-gke.1391000+`, the `ComputeClass` custom resource repo
 
 Each entry in `status.priorityStatuses[]` carries an `identifier` field:
 - For configured priority rules, `identifier` corresponds to the 0-based index in `spec.priorities` (`"0"`, `"1"`, `"2"`, etc.).
-- When `whenUnsatisfiable: ScaleUpAnyway` is configured on the ComputeClass, GKE appends a synthetic status item with `identifier: "ScaleUpAnyway"`.
+- When `whenUnsatisfiable: ScaleUpAnyway` is configured on the ComputeClass, GKE appends **two** additional entries, not one:
+  - An implicit **numeric** rung whose identifier is one past the last index of `spec.priorities` (on a class with a single rule, that is `identifier: "1"`). This rung carries the generic fallback's provisioning conditions, such as `NodeProvisioningInProgress`.
+  - A synthetic entry with `identifier: "ScaleUpAnyway"`, which in practice is observed with an empty `conditions` list.
+
+  Because of this, **do not dereference `spec.priorities[<identifier>]` directly** — under `ScaleUpAnyway` a numeric identifier can index past the end of the array. Treat any numeric identifier `>= len(spec.priorities)` as the generic fallback rung.
 
 You can inspect the live status using `kubectl`:
 
 ```bash
-kubectl get computeclass observability-class -o jsonpath='{range .status.priorityStatuses[*]}Priority [{.identifier}]: Hash={.configHash}{"\n"}{range .conditions[*]}  - Condition: {.type}={.status} ({.message}){"\n"}{end}{end}'
+kubectl get computeclass observability-class -o jsonpath='{range .status.priorityStatuses[*]}Priority [{.identifier}]:{"\n"}{range .conditions[*]}  - Condition: {.type}={.status} ({.message}){"\n"}{end}{end}'
 ```
 
 Example status output during normal operation:
@@ -90,7 +94,25 @@ When GCE encounters capacity constraints, quota exhaustion, or stockouts, GKE se
 | `NodeProvisioningInProgress` | Informational | Priority tier | The autoscaler has requested new instances from GCE for this priority tier (`reason: PodPending`, message includes `{NodePool: <pool>, MachineType: <type>, Zones: <zone>}`). Cleared automatically once nodes join as Ready. |
 | `MinCapacityProvisioning` | Informational | Priority tier | Proactive `minimumCapacity.targetNodeCount` node provisioning has started (`reason: ProvisioningStarted`). |
 | `MinCapacityProvisioned` | Informational | Priority tier | Tracks proactive `minimumCapacity.targetNodeCount` fulfillment (`status: "False", reason: ProvisioningInProgress` during scale-up; `status: "True", reason: ProvisioningComplete` once floor is satisfied). |
-| `RuleMisconfigured` | High | Priority tier | The priority configuration contains contradictory or unsupported parameters (such as invalid sysctls or missing accelerator drivers). |
+| `RuleMisconfigured` | High | Priority tier | The priority configuration contains contradictory or unsupported parameters (such as invalid sysctls, missing accelerator drivers, or a machine type unavailable in the auto-provisioned zones). |
+
+### Class-level conditions
+
+In addition to the per-priority conditions above, the top-level `status.conditions[]` array reports the health of the ComputeClass as a whole:
+
+| Condition type | Meaning |
+|---|---|
+| `Health` | Overall object health. `status: "True"` with `message: Crd is healthy.` in steady state; flips to `status: "False"` with `message: Crd is not healthy.` when any rule is invalid. |
+| `CrdMisconfigured` | At least one priority rule is invalid. Carries a specific `reason` (for example `UnavailableMachineType`) and a message naming the offending machine type and the zone that was checked. |
+| `UnableToProvision` | Every declared priority is unable to provision and `whenUnsatisfiable: ScaleUpAnyway` is not in effect. |
+
+`Health` is the single most useful field to alert on, because it is one boolean covering every rule in the ladder:
+
+```bash
+kubectl get computeclass observability-class -o json | jq -r '
+  .status.conditions[]? | select(.type=="Health") | "Health=\(.status) (\(.message))"
+'
+```
 
 ### Viewing active backoff timers
 
@@ -98,9 +120,10 @@ To check if any priority tier is currently suspended or constrained due to stock
 
 ```bash
 kubectl get computeclass observability-class -o json | jq -r '
-  .status.priorityStatuses[] |
-  select(.conditions[]? | (.type == "ProvisioningSuspended" or .type == "ProvisioningConstrained") and .status == "True") |
-  "Priority " + .identifier + " in backoff: " + (.conditions[] | select(.type=="ProvisioningSuspended" or .type=="ProvisioningConstrained") | .message)
+  .status.priorityStatuses[] as $p |
+  $p.conditions[]? |
+  select((.type == "ProvisioningSuspended" or .type == "ProvisioningConstrained") and .status == "True") |
+  "Priority \($p.identifier) [\(.type)]: \(.message)"
 '
 ```
 
@@ -120,8 +143,10 @@ The `ccc_priority_index` annotation contract defines the exact mechanism that cr
 |---|---|---|
 | `"0"`, `"1"`, `"2"`, etc. | Primary / Fallback Tier | The node was provisioned by the corresponding 0-based rule in `spec.priorities`. |
 | `"ccc_scale_up_anyway"` | Generic Fallback | All defined priorities failed, and GKE provisioned a default node (typically `e2`) because `whenUnsatisfiable: ScaleUpAnyway` was enabled. |
-| `"ccc_no_rule_matching"` | Unmatched Pool | The node was provisioned into a pool that did not match an active priority rule, or belongs to an unmanaged node pool. |
-| `"ccc_deleted"` | Configuration Drift | The node was originally created by a valid priority rule, but that rule was subsequently removed from `spec.priorities`. |
+| `"ccc_no_rule_matching"` | Configuration Drift / Unmatched Pool | The ComputeClass still exists, but no rule in it currently matches this node. This includes the drift case where the priority rule that originally created the node was **removed from `spec.priorities`**, as well as nodes in unmanaged pools. |
+| `"ccc_deleted"` | Orphaned Node | **The ComputeClass object itself has been deleted**, and the node it provisioned has outlived it. |
+
+> **Note on drift detection:** editing a rule out of `spec.priorities` moves affected nodes to `ccc_no_rule_matching`, *not* `ccc_deleted`. `ccc_deleted` is reserved for nodes whose entire ComputeClass object is gone. Verified on GKE `1.36.4-gke.1391000`.
 
 ### Querying node placement across the cluster
 
@@ -198,6 +223,14 @@ When a hard stockout occurs:
    ```
    Warning  FailedScaleUp  pod didn't trigger scale-up: 3 max node group size reached, 1 GCE out of resources
    ```
+
+   > **Caution:** pod events are not a reliable diagnosis of *why* the ladder failed. When a priority rule is misconfigured (for example, a machine type unavailable in the region), the autoscaler reports the last predicate that failed against **existing** nodes, producing a misleading event such as:
+   >
+   > ```
+   > Warning  NotTriggerScaleUp  pod didn't trigger scale-up: 8 node(s) had untolerated taint(s)
+   > ```
+   >
+   > Taints are unrelated to the actual failure. Always confirm the cause against `status.conditions[]` and `status.priorityStatuses[].conditions[]` on the ComputeClass rather than the pod event.
 3. The ComputeClass status shows `ProvisioningSuspended: True` across multiple priority identifiers.
 4. Cluster Autoscaler Visibility logs emit `noDecisionStatus.noScaleUp`:
    ```json
@@ -287,11 +320,24 @@ Run the automated diagnostic script to inspect your ComputeClass in real time:
 
 When updating a ComputeClass specification or enabling `spec.activeMigration` to rebalance workloads back to Priority 0 after a stockout clears, node replacement can stall silently due to restrictive PodDisruptionBudgets (PDBs) or `safe-to-evict: false` annotations.
 
-Inspect live rollout progress and blockers under `status.migration.configDrift`:
-```bash
-kubectl get computeclass observability-class -o jsonpath='{.status.migration.configDrift}' | jq .
-```
-Look for `blockedNodes[]` entries categorized by `PodDisruptionBudget`, `BlockingPods`, `ReplacementUnavailable` (target Priority 0 hardware out of stock), or `MaxNodeDisruptionReached`. Compare `scalingEventsHistory.migratedNodesCount` against `consolidatedNodesCount` to distinguish planned active migration from Spot preemption or low-utilization scale-down churn.
+There is **no dedicated migration or config-drift object in `status`**. The `ComputeClass` status tree contains only `conditions`, `priorityStatuses`, and `resourceInfo`. Diagnose migration stalls by combining the fields that do exist:
+
+1. **Distinguish migration from churn.** Compare `scalingEventsHistory.migratedNodesCount` against `consolidatedNodesCount` per priority to separate planned active migration from Spot preemption or low-utilization scale-down:
+   ```bash
+   kubectl get computeclass observability-class -o json | jq -r '
+     .status.priorityStatuses[] |
+     "Priority \(.identifier): migrated=\(.scalingEventsHistory.migratedNodesCount // 0) consolidated=\(.scalingEventsHistory.consolidatedNodesCount // 0) provisioned=\(.scalingEventsHistory.provisionedNodesCount // 0)"
+   '
+   ```
+2. **Find nodes stranded on a removed rule.** Nodes whose originating rule was edited out of `spec.priorities` carry `ccc_priority_index: ccc_no_rule_matching`:
+   ```bash
+   kubectl get nodes -o json | jq -r '
+     .items[] | select(.metadata.annotations."ccc_priority_index" == "ccc_no_rule_matching") |
+     .metadata.name
+   '
+   ```
+3. **Confirm the target rung can actually absorb the migration.** If Priority 0 is in backoff or misconfigured, migration has nowhere to land — check its `conditions[]` using the backoff query above.
+4. **Identify eviction blockers.** PDBs and `safe-to-evict: false` annotations are not reported on the ComputeClass. Use Cluster Autoscaler visibility logs (`noDecisionStatus.noScaleDown`) and `kubectl get pdb -A` to find what is pinning the node.
 
 ---
 
@@ -299,7 +345,7 @@ Look for `blockedNodes[]` entries categorized by `PodDisruptionBudget`, `Blockin
 
 To verify that workloads consumed paid GCE capacity reservations (`reservations.affinity: AnyBestEffort` / `Specific`) rather than spilling over to unreserved On-Demand capacity:
 1. Check `status.priorityStatuses[0].conditions[]` (live or in Cloud Audit Logs) for `ReservationCapacityExceeded`, `ReservationNotFound`, `ReservationNotReady`, or `ReservationIncompatible`.
-2. Compare `resourceInfo.currentCount` on Priority `"0"` (Reserved) vs. Priority `"1"` (Unreserved On-Demand fallback) to quantify spillover.
+2. Compare `resourceInfo` counts on Priority `"0"` (Reserved) vs. Priority `"1"` (Unreserved On-Demand fallback) to quantify spillover. Note that `resourceInfo` is an **array** of named resources, not a map, so select into it rather than keying into it: `.resourceInfo[] | select(.name=="cpu") | .currentCount`.
 3. Monitor `cluster_node_provisioning_failed_attempts_count_per_ccc` filtered by `metric.labels.reason =~ "RESERVATION_.*|AUTOMATIC_RESERVATIONS_.*"`.
 
 ---
