@@ -1,0 +1,197 @@
+{
+  "displayName": "ComputeClass scale-up health",
+  "dashboardFilters": [
+    {
+      "filterType": "METRIC_LABEL",
+      "labelKey": "computeclass",
+      "templateVariable": "computeclass",
+      "stringValue": "priority-fulfillment"
+    }
+  ],
+  "mosaicLayout": {
+    "columns": 12,
+    "tiles": [
+      {
+        "xPos": 0,
+        "yPos": 0,
+        "width": 4,
+        "height": 3,
+        "widget": {
+          "title": "Pods unschedulable now",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "sum(kube_pod_status_unschedulable) or vector(0)",
+              "unitOverride": "1"
+            },
+            "sparkChartView": {
+              "sparkChartType": "SPARK_LINE"
+            },
+            "thresholds": [
+              {
+                "value": 1,
+                "color": "YELLOW",
+                "direction": "ABOVE"
+              },
+              {
+                "value": 10,
+                "color": "RED",
+                "direction": "ABOVE"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "xPos": 4,
+        "yPos": 0,
+        "width": 4,
+        "height": 3,
+        "widget": {
+          "title": "Priority attribution available (1 = yes)",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "min(ccc_priority_annotation_supported) or vector(0)",
+              "unitOverride": "1"
+            },
+            "thresholds": [
+              {
+                "value": 1,
+                "color": "RED",
+                "direction": "BELOW"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "xPos": 8,
+        "yPos": 0,
+        "width": 4,
+        "height": 3,
+        "widget": {
+          "title": "Exporter up (1 = yes)",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "min(ccc_exporter_up) or vector(0)",
+              "unitOverride": "1"
+            },
+            "thresholds": [
+              {
+                "value": 1,
+                "color": "RED",
+                "direction": "BELOW"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 3,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Unschedulable pods over time (cluster-wide)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(kube_pod_status_unschedulable) or vector(0)"
+                },
+                "plotType": "LINE",
+                "legendTemplate": "unschedulable pods"
+              }
+            ],
+            "yAxis": {
+              "label": "pods",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 3,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Node provisions per rule (5m buckets)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "label_replace(sum by (priority) (increase(ccc_node_provisions_total{computeclass=~\"${computeclass.value}\"}[5m])), \"priority\", \"rule $1\", \"priority\", \"(.*)\")"
+                },
+                "plotType": "STACKED_BAR"
+              }
+            ],
+            "yAxis": {
+              "label": "nodes provisioned",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 7,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Nodes by priority rule",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "label_replace(sum by (priority) (ccc_nodes_by_priority{computeclass=~\"${computeclass.value}\",kind=\"rule\"}), \"priority\", \"rule $1\", \"priority\", \"(.*)\")"
+                },
+                "plotType": "STACKED_AREA"
+              }
+            ],
+            "yAxis": {
+              "label": "nodes",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 7,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Fallback pressure (% of nodes not on rule 0)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "100 * sum(ccc_nodes_by_priority{computeclass=~\"${computeclass.value}\",kind=\"rule\",priority!=\"0\"}) / sum(ccc_nodes_by_priority{computeclass=~\"${computeclass.value}\",kind=\"rule\"})",
+                  "unitOverride": "%"
+                },
+                "plotType": "LINE",
+                "legendTemplate": "% on fallback"
+              }
+            ],
+            "yAxis": {
+              "label": "% of nodes",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 11,
+        "width": 12,
+        "height": 4,
+        "widget": {
+          "title": "What this dashboard cannot tell you",
+          "text": {
+            "content": "**Every tile above is built on a metric verified to exist and carry data in this project.** Two things it deliberately does *not* show:\n\n**1. Why a scale-up failed.** There is no per-ComputeClass failure-reason signal on this cluster today. GKE's `kubernetes.io/autoscaler/cluster_node_provisioning_failed_attempts_count_per_ccc` (with its `reason` label) provides it, but that metric **requires GKE 1.37+ and is still rolling out** \u2014 the exact patch version has not been announced, and until it reaches this project the query returns `404 NOT_FOUND`. Until then, failure reasons come from `kubectl get computeclass -o yaml` (`status.priorityStatuses`) and pod events, not from a chart.\n\n**2. Unschedulable pods are cluster-wide, not per-ComputeClass.** `kube_pod_status_unschedulable` carries no `computeclass` label, so the `computeclass` filter at the top of this dashboard does not apply to those two tiles. Read them as \"is provisioning keeping up anywhere in this cluster\", and correlate by time with the per-rule tiles rather than assuming attribution.\n\n**Read the health scorecards first.** If *Exporter up* is 0, every `ccc_*` tile reads empty and means nothing \u2014 absence is not zero. If *Priority attribution available* is 0, the cluster predates node priority annotations and per-rule attribution is unavailable regardless of what the charts draw."
+          }
+        }
+      }
+    ]
+  }
+}

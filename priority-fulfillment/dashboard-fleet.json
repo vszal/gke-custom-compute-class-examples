@@ -159,7 +159,6 @@
                   "unitOverride": "1"
                 },
                 "plotType": "STACKED_AREA",
-                "legendTemplate": "${cluster}",
                 "targetAxis": "Y1"
               }
             ],
@@ -181,11 +180,10 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (priority) (ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\"})",
+                  "prometheusQuery": "label_replace(sum by (priority) (ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\"}), \"priority\", \"rule $1\", \"priority\", \"(.*)\")",
                   "unitOverride": "1"
                 },
                 "plotType": "STACKED_AREA",
-                "legendTemplate": "rule ${priority}",
                 "targetAxis": "Y1"
               }
             ],
@@ -211,7 +209,6 @@
                   "unitOverride": "1"
                 },
                 "plotType": "STACKED_AREA",
-                "legendTemplate": "${computeclass}",
                 "targetAxis": "Y1"
               }
             ],
@@ -237,7 +234,6 @@
                   "unitOverride": "%"
                 },
                 "plotType": "LINE",
-                "legendTemplate": "${computeclass}",
                 "targetAxis": "Y1"
               }
             ],
@@ -263,7 +259,6 @@
                   "unitOverride": "1"
                 },
                 "plotType": "STACKED_AREA",
-                "legendTemplate": "${cluster}",
                 "targetAxis": "Y1"
               }
             ],
@@ -289,7 +284,6 @@
                   "unitOverride": "%"
                 },
                 "plotType": "LINE",
-                "legendTemplate": "${cluster}",
                 "targetAxis": "Y1"
               }
             ],
@@ -315,7 +309,6 @@
                   "unitOverride": "1"
                 },
                 "plotType": "STACKED_AREA",
-                "legendTemplate": "${priority}",
                 "targetAxis": "Y1"
               }
             ],

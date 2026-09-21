@@ -264,9 +264,18 @@ gcloud logging read '
 ' --limit=20 --format="table(timestamp,jsonPayload.trigger,jsonPayload.resultInfo.results[0].error.messageId)"
 ```
 
-### Cloud Monitoring metrics & MQL queries (1.36+)
+### Cloud Monitoring metrics & MQL queries (1.37+)
 
-GKE exports three ComputeClass autoscaling metrics under the `k8s_entity` monitored resource (`resource.labels.entity_type = "ComputeClass"`):
+GKE exports three ComputeClass autoscaling metrics under the `k8s_entity` monitored resource (`resource.labels.entity_type = "ComputeClass"`).
+
+> **Version gate — read this before you build on them.** These three metrics **require GKE 1.37+ and are rolling out now; the exact patch version has not been announced yet.** Until the rollout reaches your project, querying any of them returns `404 NOT_FOUND` from the Cloud Monitoring API — which is the response for an undefined metric *name*, not the `series=0` you get from a real metric type with no data. Verify before you plan around them:
+>
+> ```bash
+> gcloud monitoring metrics-descriptors list --filter='metric.type~"per_ccc"'
+> ```
+>
+> There is no `--monitoring` component to enable; autoscaler metrics ride under `SYSTEM`. For a scale-up health view that works **today**, on metrics verified to carry data, see [`priority-fulfillment/dashboard-health.json`](../priority-fulfillment/README.md).
+
 - `kubernetes.io/autoscaler/cluster_pending_pods_per_ccc`: Pending Pods awaiting provisioning (or in `UnableToProvision` state). Filter `resource.labels.entity_name = ""` to isolate non-ComputeClass pods.
 - `kubernetes.io/autoscaler/cluster_node_provisioning_attempts_count_per_ccc`: Scale-up attempts initiated per ComputeClass.
   - **Asynchronous provisioning rule**: Do not subtract failures from attempts in real time to calculate successes; compare trends over a rolling window (e.g., `rate(10m)`).

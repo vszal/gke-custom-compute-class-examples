@@ -63,6 +63,15 @@ data:
                                           UID. Event frequency rather than capacity.
       ccc_nodes_by_priority      gauge    Raw node count, for classes whose rules all
                                           provision the same shape.
+      ccc_accelerators_by_priority
+                                 gauge    Accelerators currently running on each rule,
+                                          labelled by resource name (nvidia.com/gpu,
+                                          google.com/tpu). vCPUs are the wrong unit for
+                                          an accelerator class -- two rules can serve the
+                                          same vCPU count while delivering a different
+                                          number of chips, which is the number that costs
+                                          money. Emitted only for rules actually running
+                                          accelerators, so CPU-only fleets stay clean.
       ccc_priority_annotation_supported
                                  gauge    1 if this cluster stamps the annotation, 0 if it
                                           does not, absent if no node is old enough to say.
@@ -84,6 +93,11 @@ data:
     TYPE_LABEL = "node.kubernetes.io/instance-type"
     PRIORITY_ANNOTATION = "ccc_priority_index"
     POLL_SECONDS = 10
+
+    # Accelerator capacity keys, read straight off node.status.capacity. Named explicitly
+    # rather than globbed: a node advertises plenty of extended resources, and only these
+    # are the ones a priority rule is chosen for.
+    ACCELERATOR_RESOURCES = ("nvidia.com/gpu", "google.com/tpu")
 
     # Values GKE writes when no numeric rule applies. Kept as their own bands rather than
     # folded into "other", because each one means something different operationally.
@@ -163,6 +177,7 @@ data:
 
         def poll(self):
             nodes, vcpus, counts = defaultdict(int), defaultdict(float), defaultdict(int)
+            accel = defaultdict(float)
             now = time.time()
             # Evidence for whether this cluster stamps the annotation at all. Only nodes past
             # the grace window count as evidence -- a node still inside it proves nothing.
@@ -183,7 +198,12 @@ data:
                     priority = UNSUPPORTED if old_enough else PENDING
                 key = (compute_class, priority, classify(priority))
                 nodes[key] += 1
-                vcpus[key] += _quantity(node.get("status", {}).get("capacity", {}).get("cpu"))
+                capacity = node.get("status", {}).get("capacity", {})
+                vcpus[key] += _quantity(capacity.get("cpu"))
+                for resource in ACCELERATOR_RESOURCES:
+                    qty = _quantity(capacity.get(resource))
+                    if qty:
+                        accel[key + (resource,)] += qty
 
                 uid = meta.get("uid")
                 if uid and uid not in self._counted and priority != PENDING:
@@ -196,7 +216,7 @@ data:
                         counts[(compute_class, priority)] += 1
 
             with self._lock:
-                self._gauges = {"nodes": nodes, "vcpus": vcpus}
+                self._gauges = {"nodes": nodes, "vcpus": vcpus, "accel": accel}
                 self._settled = (settled, settled_annotated)
                 for key, n in counts.items():
                     self._provisions[key] += n
@@ -239,6 +259,18 @@ data:
             for (cc, pri, kind), v in sorted(gauges.get("vcpus", {}).items()):
                 out.append(
                     f'ccc_vcpus_by_priority{{computeclass="{cc}",priority="{pri}",kind="{kind}"}} {v:g}')
+            # Absent rather than zero on a CPU-only fleet: an accelerator series that is
+            # flat at 0 reads as "the GPUs went away", which is a different claim.
+            if gauges.get("accel"):
+                out += [
+                    "# HELP ccc_accelerators_by_priority Accelerators running on each "
+                    "ComputeClass priority rule, by resource name.",
+                    "# TYPE ccc_accelerators_by_priority gauge",
+                ]
+                for (cc, pri, kind, resource), v in sorted(gauges["accel"].items()):
+                    out.append(
+                        f'ccc_accelerators_by_priority{{computeclass="{cc}",priority="{pri}",'
+                        f'kind="{kind}",accelerator="{resource}"}} {v:g}')
             out += [
                 "# HELP ccc_nodes_by_priority Nodes running on each ComputeClass priority rule.",
                 "# TYPE ccc_nodes_by_priority gauge",

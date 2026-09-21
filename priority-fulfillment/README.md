@@ -48,6 +48,8 @@ So the headline unit here is **vCPU-time**:
 
 `ccc_nodes_by_priority` (raw node count) is also exported, and it is the right metric for the narrow case where every rule in a class provisions the same shape.
 
+`ccc_accelerators_by_priority` covers the case vCPUs get wrong. On an accelerator class the chip count, not the core count, is what you are ranking rules over and what dominates the bill — and two rules can deliver the same vCPUs while delivering different numbers of chips. It carries an `accelerator` label (`nvidia.com/gpu`, `google.com/tpu`) and is emitted only for rules actually running accelerators, so a CPU-only fleet sees nothing. It plots on the **right-hand axis** of the capacity tile, because a handful of chips against hundreds of vCPUs on one scale flattens to a line on the floor.
+
 ## What this example shows
 
 1. [`exporter.yaml`](./exporter.yaml) deploys the exporter: a namespace, a ServiceAccount, a ClusterRole granting **read-only access to nodes and nothing else**, the script in a ConfigMap, a single-replica Deployment, and a `PodMonitoring` that scrapes it every 30s.
@@ -59,6 +61,7 @@ So the headline unit here is **vCPU-time**:
    | `ccc_vcpus_by_priority` | gauge | vCPUs running on each rule. Area under the stack = vCPU-hours. |
    | `ccc_node_provisions_total` | counter | Nodes provisioned per rule, deduplicated by node UID. |
    | `ccc_nodes_by_priority` | gauge | Raw node count per rule. |
+   | `ccc_accelerators_by_priority` | gauge | Accelerator chips per rule, labelled by `accelerator` (`nvidia.com/gpu`, `google.com/tpu`). Absent on CPU-only fleets. |
    | `ccc_exporter_up` | gauge | 1 when the last poll succeeded. |
    | `ccc_priority_annotation_supported` | gauge | 1 if this cluster stamps the annotation, 0 if it does not, absent if no node is old enough to say. |
 
@@ -70,7 +73,11 @@ So the headline unit here is **vCPU-time**:
 
    Note the variable syntax: `${computeclass.value}` inside an explicit `=~"..."` matcher, **not** bare `${computeclass}`. The bare form expands to a whole label matcher using `=`, so a `.*` default silently becomes `computeclass=".*"` and matches nothing — an empty chart rather than an error. The `.value` form substitutes the value alone, which is what a regex matcher wants.
 
-4. [`priority-fulfillment-class.yaml`](./priority-fulfillment-class.yaml) and [`priority-fulfillment-deploy.yaml`](./priority-fulfillment-deploy.yaml) are a demo class and workload for generating traffic across more than one rule.
+4. [`dashboard-health.json`](./dashboard-health.json) is the **scale-up health** view — a different axis from the two above. Where `dashboard.json` and `dashboard-fleet.json` ask *what shape did I get*, this one asks *is provisioning working right now, and can I trust what I'm reading*. Eight tiles: three health scorecards across the top (unschedulable pods, whether priority attribution is available on this cluster, whether the exporter is alive), unschedulable pods over time, node provisions per rule in 5-minute buckets, nodes by rule, fallback pressure as a percentage, and a text tile that states the dashboard's own blind spots.
+
+   Every query in it was executed against live Managed Prometheus before it shipped, so no tile rests on a metric that merely appears in documentation.
+
+5. [`priority-fulfillment-class.yaml`](./priority-fulfillment-class.yaml) and [`priority-fulfillment-deploy.yaml`](./priority-fulfillment-deploy.yaml) are a demo class and workload for generating traffic across more than one rule.
 
 ## Three levels of granularity
 
@@ -79,6 +86,14 @@ The same exporter and the same metrics serve all three; only the aggregation cha
 **One ComputeClass** (`dashboard.json`) answers *is this class getting the shape I asked for?* This is the debugging view — you look at it when a team says their workload is on the wrong machines.
 
 **The fleet** (`dashboard-fleet.json`) answers *across everything we run, how much capacity is landing on preferred rules, and which classes are dragging?* Because every series carries a `computeclass` label, `sum by (computeclass)` gives per-class cost attribution for free, and `100 * rule-0 vCPU-hours / total vCPU-hours by class` ranks the offenders. This is the FinOps view.
+
+### Why the health view exists separately
+
+The three questions GKE's own per-ComputeClass metrics are meant to answer — how many pods are pending on this class, how many provisioning attempts were made, and how many failed and why — **require GKE 1.37+**. The metric types `kubernetes.io/autoscaler/cluster_pending_pods_per_ccc`, `cluster_node_provisioning_attempts_count_per_ccc`, and `cluster_node_provisioning_failed_attempts_count_per_ccc` are rolling out now; **the exact patch version has not been announced yet**, so treat `1.37+` as the floor and verify against your own project before you plan around them. Until the rollout reaches a project, querying any of the three returns `404 NOT_FOUND` — the same response Cloud Monitoring gives for a metric name that was never defined, and distinct from the `series=0` it returns for a real metric type that simply has no data. That was the state on a 1.36.4-gke.1391000 cluster with SYSTEM monitoring and Managed Prometheus enabled, actively autoscaling ComputeClass node pools, and still the state on a purpose-built **1.37.0-gke.3503000** cluster (newest RAPID version at the time) driven by a two-rule class that produced pending pods, one failed provisioning attempt (`UnavailableMachineType`), and one successful one within three minutes — eighteen polls over twelve minutes, eighteen `404`s. There is no `--monitoring` component to turn them on and there never will be: the component list has no autoscaler entry, because autoscaler metrics ride under `SYSTEM`. Check for yourself with `gcloud monitoring metrics-descriptors list --filter='metric.type~"per_ccc"'`.
+
+Everything on this dashboard is built on metrics **verified to carry data today**, so it keeps working before and after that rollout lands. When the per-CCC metrics do arrive, they add the one thing this view genuinely cannot supply — a per-class failure *reason* — rather than replacing anything here.
+
+So `dashboard-health.json` answers the first two questions from metrics that do exist (`kube_pod_status_unschedulable` from kube-state-metrics, and this exporter's own `ccc_node_provisions_total`), and is explicit on its face that it cannot answer the third. Failure *reasons* still come from `status.priorityStatuses` and pod events. When the per-CCC metrics do land, they slot in beside these tiles rather than replacing them — the exporter's provisioning counter is per-rule, which the GKE metric is not.
 
 **Multiple clusters** come free with Managed Prometheus. GMP stamps `cluster`, `location`, and `project_id` onto every series as resource labels, so `sum by (cluster) (...)` rolls up without any change to the exporter — you just deploy the same `exporter.yaml` to each cluster. Verified across two clusters in different regions:
 
@@ -167,11 +182,15 @@ kubectl -n ccc-observability port-forward deploy/ccc-priority-exporter 9100:9100
 curl -s localhost:9100/metrics | grep -v '^#'
 ```
 
-Import the dashboard:
+Import the dashboards (each is a separate dashboard; import whichever you want):
 
 ```bash
-gcloud monitoring dashboards create --config-from-file=dashboard.json --project <project-id>
+gcloud monitoring dashboards create --config-from-file=dashboard.json        --project <project-id>
+gcloud monitoring dashboards create --config-from-file=dashboard-fleet.json  --project <project-id>
+gcloud monitoring dashboards create --config-from-file=dashboard-health.json --project <project-id>
 ```
+
+Each ships with the `computeclass` template variable defaulting to `priority-fulfillment`, the demo class below. Pointing one at your own class is a one-field edit in the dashboard's filter bar — or change `stringValue` in the JSON before importing.
 
 Generate some traffic across rules:
 
@@ -228,4 +247,4 @@ kubectl delete -f priority-fulfillment-class.yaml --ignore-not-found
 kubectl delete -f exporter.yaml --ignore-not-found
 ```
 
-Node auto-provisioning reclaims the nodes a few minutes later, leaving empty `nap-*` node pool shells behind (harmless). Delete the dashboard from the Cloud Monitoring console, or with `gcloud monitoring dashboards delete <dashboard-id>`.
+Node auto-provisioning reclaims the nodes a few minutes later, leaving empty `nap-*` node pool shells behind (harmless). Delete the dashboards from the Cloud Monitoring console, or with `gcloud monitoring dashboards delete <dashboard-id>` for each one you imported.

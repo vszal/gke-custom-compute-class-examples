@@ -70,11 +70,10 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (priority) (increase(ccc_node_provisions_total{computeclass=~\"${computeclass.value}\"}[1h]))",
+                  "prometheusQuery": "label_replace(sum by (priority) (increase(ccc_node_provisions_total{computeclass=~\"${computeclass.value}\"}[1h])), \"priority\", \"rule $1\", \"priority\", \"(.*)\")",
                   "unitOverride": "1"
                 },
                 "plotType": "STACKED_BAR",
-                "legendTemplate": "rule ${priority}",
                 "targetAxis": "Y1"
               }
             ],
@@ -91,17 +90,32 @@
         "width": 12,
         "height": 4,
         "widget": {
-          "title": "vCPUs by priority rule (area = vCPU-hours)",
+          "title": "Capacity by priority rule (vCPUs stacked, accelerators on right)",
           "xyChart": {
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (priority) (ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\"})",
+                  "prometheusQuery": "label_replace(sum by (priority) (ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\"}), \"priority\", \"rule $1 \u00b7 vCPU\", \"priority\", \"(.*)\")",
                   "unitOverride": "1"
                 },
                 "plotType": "STACKED_AREA",
-                "legendTemplate": "rule ${priority}",
                 "targetAxis": "Y1"
+              },
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "label_replace(sum by (priority) (ccc_accelerators_by_priority{computeclass=~\"${computeclass.value}\",accelerator=\"nvidia.com/gpu\"}), \"priority\", \"rule $1 \u00b7 GPU\", \"priority\", \"(.*)\")",
+                  "unitOverride": "1"
+                },
+                "plotType": "LINE",
+                "targetAxis": "Y2"
+              },
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "label_replace(sum by (priority) (ccc_accelerators_by_priority{computeclass=~\"${computeclass.value}\",accelerator=\"google.com/tpu\"}), \"priority\", \"rule $1 \u00b7 TPU\", \"priority\", \"(.*)\")",
+                  "unitOverride": "1"
+                },
+                "plotType": "LINE",
+                "targetAxis": "Y2"
               }
             ],
             "yAxis": {
@@ -110,6 +124,10 @@
             },
             "chartOptions": {
               "mode": "COLOR"
+            },
+            "y2Axis": {
+              "label": "accelerator chips",
+              "scale": "LINEAR"
             }
           }
         }
@@ -125,11 +143,10 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "100 * sum by (priority) (ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",kind=\"rule\"}) / ignoring(priority) group_left sum(ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",kind=\"rule\"})",
+                  "prometheusQuery": "label_replace(100 * sum by (priority) (ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",kind=\"rule\"}) / ignoring(priority) group_left sum(ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",kind=\"rule\"}), \"priority\", \"rule $1\", \"priority\", \"(.*)\")",
                   "unitOverride": "%"
                 },
                 "plotType": "STACKED_AREA",
-                "legendTemplate": "rule ${priority}",
                 "targetAxis": "Y1"
               }
             ],
@@ -154,11 +171,10 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (priority) (ccc_nodes_by_priority{computeclass=~\"${computeclass.value}\"})",
+                  "prometheusQuery": "label_replace(sum by (priority) (ccc_nodes_by_priority{computeclass=~\"${computeclass.value}\"}), \"priority\", \"rule $1\", \"priority\", \"(.*)\")",
                   "unitOverride": "1"
                 },
                 "plotType": "STACKED_AREA",
-                "legendTemplate": "rule ${priority}",
                 "targetAxis": "Y1"
               }
             ],
@@ -184,7 +200,6 @@
                   "unitOverride": "1"
                 },
                 "plotType": "STACKED_AREA",
-                "legendTemplate": "${priority}",
                 "targetAxis": "Y1"
               }
             ],
