@@ -1,0 +1,338 @@
+# ComputeClass priority-rule fulfillment exporter.
+#
+# Reads the ccc_priority_index annotation GKE stamps on every ComputeClass-provisioned
+# node and turns it into Prometheus time series, scraped by Google Managed Prometheus.
+# No image build required: the script is mounted from a ConfigMap into a stock python
+# image.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ccc-observability
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ccc-priority-exporter
+  namespace: ccc-observability
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ccc-priority-exporter
+rules:
+  # Read-only on nodes is the entire privilege requirement.
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ccc-priority-exporter
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ccc-priority-exporter
+subjects:
+  - kind: ServiceAccount
+    name: ccc-priority-exporter
+    namespace: ccc-observability
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ccc-priority-exporter
+  namespace: ccc-observability
+data:
+  exporter.py: |
+    """Export GKE ComputeClass priority-rule fulfillment as Prometheus metrics.
+
+    GKE stamps every node a ComputeClass provisioned with a ccc_priority_index
+    annotation naming the priority rule that provisioned it. This exporter turns that
+    annotation into time series, so you can answer -- historically -- how much of your
+    capacity was served by your preferred rule versus the fallbacks below it.
+
+    Three capacity metrics, because "how often did rule 0 win?" has two honest readings,
+    plus one that says whether this cluster can answer the question at all:
+
+      ccc_vcpus_by_priority      gauge    vCPUs currently running on each rule. The area
+                                          under this stacked is vCPU-hours, which is the
+                                          size-normalised way to compare rules that
+                                          provision different machine shapes.
+      ccc_node_provisions_total  counter  Nodes provisioned per rule, deduplicated by node
+                                          UID. Event frequency rather than capacity.
+      ccc_nodes_by_priority      gauge    Raw node count, for classes whose rules all
+                                          provision the same shape.
+      ccc_priority_annotation_supported
+                                 gauge    1 if this cluster stamps the annotation, 0 if it
+                                          does not, absent if no node is old enough to say.
+                                          Lets a mixed fleet show which clusters can be
+                                          attributed to a rule and which cannot.
+    """
+    import calendar
+    import json
+    import ssl
+    import threading
+    import time
+    import urllib.request
+    from collections import defaultdict
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    SA = "/var/run/secrets/kubernetes.io/serviceaccount"
+    API = "https://kubernetes.default.svc/api/v1/nodes"
+    CLASS_LABEL = "cloud.google.com/compute-class"
+    TYPE_LABEL = "node.kubernetes.io/instance-type"
+    PRIORITY_ANNOTATION = "ccc_priority_index"
+    POLL_SECONDS = 10
+
+    # Values GKE writes when no numeric rule applies. Kept as their own bands rather than
+    # folded into "other", because each one means something different operationally.
+    SENTINELS = ("ccc_scale_up_anyway", "ccc_no_rule_matching", "ccc_deleted")
+
+    # The annotation is stamped on after the node object is created, so a node is briefly
+    # visible without one. That window is minutes, not seconds -- long enough that treating
+    # a missing annotation as rule 0 would materially skew the numbers.
+    PENDING = "pending_annotation"
+
+    # A node that is still unannotated well past that window is not waiting -- it is running
+    # on a cluster that does not stamp the annotation at all. The two cases look identical in
+    # a single API read and mean completely different things, so they get separate bands:
+    # "pending_annotation" drains within a minute or two, "no_annotation" never does. Keeping
+    # them apart is what makes a mixed fleet legible, where some clusters support the
+    # annotation and some do not. Measured stamping lag is 57-62s; 5 minutes is generous.
+    UNSUPPORTED = "no_annotation"
+    ANNOTATION_GRACE_SECONDS = 300
+
+
+    def _token():
+        with open(f"{SA}/token") as fh:
+            return fh.read().strip()
+
+
+    def _quantity(value):
+        """Parse a Kubernetes CPU quantity ("4", "3920m") into float cores."""
+        if not value:
+            return 0.0
+        value = str(value)
+        if value.endswith("m"):
+            return float(value[:-1]) / 1000.0
+        try:
+            return float(value)
+        except ValueError:
+            return 0.0
+
+
+    def classify(priority):
+        if priority in SENTINELS:
+            return "sentinel"
+        if priority.isdigit():
+            return "rule"
+        if priority == UNSUPPORTED:
+            return "unsupported"
+        return "pending"
+
+
+    def _age_seconds(timestamp, now):
+        """Seconds since an RFC3339 creationTimestamp. Unparseable -> 0 (treat as new)."""
+        if not timestamp:
+            return 0.0
+        try:
+            return max(0.0, now - calendar.timegm(time.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")))
+        except ValueError:
+            return 0.0
+
+
+    class Collector:
+        def __init__(self):
+            self._lock = threading.Lock()
+            self._gauges = {}
+            # node UID -> True once counted, so a node is never counted twice no matter how
+            # many times it is re-read or re-annotated.
+            self._counted = {}
+            self._provisions = defaultdict(int)
+            self._error = None
+            self._seeded = False
+            # (nodes past the grace window, how many of those carry the annotation)
+            self._settled = (0, 0)
+
+        def fetch(self):
+            req = urllib.request.Request(API, headers={"Authorization": f"Bearer {_token()}"})
+            ctx = ssl.create_default_context(cafile=f"{SA}/ca.crt")
+            with urllib.request.urlopen(req, context=ctx, timeout=15) as resp:
+                return json.load(resp).get("items", [])
+
+        def poll(self):
+            nodes, vcpus, counts = defaultdict(int), defaultdict(float), defaultdict(int)
+            now = time.time()
+            # Evidence for whether this cluster stamps the annotation at all. Only nodes past
+            # the grace window count as evidence -- a node still inside it proves nothing.
+            settled = settled_annotated = 0
+            for node in self.fetch():
+                meta = node.get("metadata", {})
+                compute_class = meta.get("labels", {}).get(CLASS_LABEL)
+                if not compute_class:
+                    continue  # not provisioned by a ComputeClass
+                annotated = meta.get("annotations", {}).get(PRIORITY_ANNOTATION)
+                old_enough = _age_seconds(meta.get("creationTimestamp"), now) >= ANNOTATION_GRACE_SECONDS
+                if old_enough:
+                    settled += 1
+                    settled_annotated += 1 if annotated else 0
+                if annotated:
+                    priority = annotated
+                else:
+                    priority = UNSUPPORTED if old_enough else PENDING
+                key = (compute_class, priority, classify(priority))
+                nodes[key] += 1
+                vcpus[key] += _quantity(node.get("status", {}).get("capacity", {}).get("cpu"))
+
+                uid = meta.get("uid")
+                if uid and uid not in self._counted and priority != PENDING:
+                    # On the first poll we only record which nodes already exist; counting
+                    # them would turn an exporter restart into a burst of fake provisions.
+                    # UNSUPPORTED nodes are counted too: on a cluster that never stamps the
+                    # annotation you still get a provisioning rate, just no rule attribution.
+                    self._counted[uid] = True
+                    if self._seeded:
+                        counts[(compute_class, priority)] += 1
+
+            with self._lock:
+                self._gauges = {"nodes": nodes, "vcpus": vcpus}
+                self._settled = (settled, settled_annotated)
+                for key, n in counts.items():
+                    self._provisions[key] += n
+                self._seeded = True
+                self._error = None
+
+        def run(self):
+            while True:
+                try:
+                    self.poll()
+                except Exception as exc:
+                    with self._lock:
+                        self._error = str(exc)
+                time.sleep(POLL_SECONDS)
+
+        def render(self):
+            with self._lock:
+                gauges, provisions, error = self._gauges, dict(self._provisions), self._error
+                settled, settled_annotated = self._settled
+            out = [
+                "# HELP ccc_exporter_up 1 when the last node poll succeeded.",
+                "# TYPE ccc_exporter_up gauge",
+                f"ccc_exporter_up {0 if error else 1}",
+            ]
+            if settled:
+                # Deliberately absent rather than 0 when there is no settled ComputeClass node
+                # to judge by: "we cannot tell yet" is not the same claim as "unsupported", and
+                # a fleet tile should show the difference.
+                out += [
+                    "# HELP ccc_priority_annotation_supported 1 if this cluster stamps "
+                    "ccc_priority_index on ComputeClass nodes, 0 if it does not. Absent when "
+                    "no node has been up long enough to tell.",
+                    "# TYPE ccc_priority_annotation_supported gauge",
+                    f"ccc_priority_annotation_supported {1 if settled_annotated else 0}",
+                ]
+            out += [
+                "# HELP ccc_vcpus_by_priority vCPUs running on each ComputeClass priority rule.",
+                "# TYPE ccc_vcpus_by_priority gauge",
+            ]
+            for (cc, pri, kind), v in sorted(gauges.get("vcpus", {}).items()):
+                out.append(
+                    f'ccc_vcpus_by_priority{{computeclass="{cc}",priority="{pri}",kind="{kind}"}} {v:g}')
+            out += [
+                "# HELP ccc_nodes_by_priority Nodes running on each ComputeClass priority rule.",
+                "# TYPE ccc_nodes_by_priority gauge",
+            ]
+            for (cc, pri, kind), v in sorted(gauges.get("nodes", {}).items()):
+                out.append(
+                    f'ccc_nodes_by_priority{{computeclass="{cc}",priority="{pri}",kind="{kind}"}} {v}')
+            out += [
+                "# HELP ccc_node_provisions_total Nodes provisioned per priority rule, by node UID.",
+                "# TYPE ccc_node_provisions_total counter",
+            ]
+            for (cc, pri), v in sorted(provisions.items()):
+                out.append(
+                    f'ccc_node_provisions_total{{computeclass="{cc}",priority="{pri}"}} {v}')
+            return "\n".join(out) + "\n"
+
+
+    COLLECTOR = Collector()
+
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path not in ("/metrics", "/"):
+                self.send_response(404)
+                self.end_headers()
+                return
+            body = COLLECTOR.render().encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; version=0.0.4")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+
+    if __name__ == "__main__":
+        threading.Thread(target=COLLECTOR.run, daemon=True).start()
+        HTTPServer(("", 9100), Handler).serve_forever()
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ccc-priority-exporter
+  namespace: ccc-observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ccc-priority-exporter
+  template:
+    metadata:
+      labels:
+        app: ccc-priority-exporter
+    spec:
+      serviceAccountName: ccc-priority-exporter
+      containers:
+        - name: exporter
+          image: python:3.12-slim
+          command: ["python3", "/app/exporter.py"]
+          ports:
+            - name: metrics
+              containerPort: 9100
+          volumeMounts:
+            - name: app
+              mountPath: /app
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 5
+      volumes:
+        - name: app
+          configMap:
+            name: ccc-priority-exporter
+---
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: ccc-priority-exporter
+  namespace: ccc-observability
+spec:
+  selector:
+    matchLabels:
+      app: ccc-priority-exporter
+  endpoints:
+    # 30s matches the /120 divisor the dashboard uses to convert vCPU-samples into
+    # vCPU-hours. Change one and you must change the other.
+    - port: metrics
+      interval: 30s

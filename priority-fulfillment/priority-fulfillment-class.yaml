@@ -1,0 +1,22 @@
+# Demo ComputeClass for the priority-fulfillment dashboard.
+#
+# Three priority rules of descending preference. The exporter reports how much of
+# the capacity this class actually delivered came from rule 0 versus the fallbacks,
+# which is the question the dashboard exists to answer.
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: priority-fulfillment
+spec:
+  nodePoolAutoCreation:
+    enabled: true
+  # ScaleUpAnyway keeps the class serving when every rule is exhausted; those nodes
+  # are annotated ccc_scale_up_anyway and show up in the "sentinel" tile rather than
+  # being silently scored as a rule.
+  whenUnsatisfiable: ScaleUpAnyway
+  priorities:
+    - machineFamily: c3
+      spot: true
+    - machineFamily: n2
+      spot: true
+    - machineFamily: e2

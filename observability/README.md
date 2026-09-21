@@ -299,10 +299,10 @@ protoPayload.methodName:"com.google.cloud.v1.computeclasses.status"
 
 # 2. Verify ccc_priority_index on nodes that have already been scaled down/deleted
 resource.type="k8s_cluster"
-protoPayload.methodName="io.k8s.core.v1.nodes.create"
+protoPayload.methodName=("io.k8s.core.v1.nodes.patch" OR "io.k8s.core.v1.nodes.update")
 protoPayload.resourceName:"nodes/NODE_NAME"
 ```
-Expand `protoPayload.request.status` in `computeclasses.status` logs to examine historical `priorityStatuses[].conditions`, `resourceInfo` (`targetCount > currentCount` for scale-up vs. `< currentCount` for scale-down), and `scalingEventsHistory` (`provisionedNodesCount` vs. `consolidatedNodesCount`). In `nodes.create` logs, inspect `protoPayload.request.metadata.annotations["ccc_priority_index"]`.
+Expand `protoPayload.request.status` in `computeclasses.status` logs to examine historical `priorityStatuses[].conditions`, `resourceInfo` (`targetCount > currentCount` for scale-up vs. `< currentCount` for scale-down), and `scalingEventsHistory` (`provisionedNodesCount` vs. `consolidatedNodesCount`). For the node annotation, inspect `protoPayload.request.metadata.annotations["ccc_priority_index"]` — but note it is **not** present on `nodes.create`. GKE writes the annotation roughly a minute *after* the node object is created, as a separate patch, so the create entry shows the node without it. Filter on `nodes.patch`/`nodes.update` as above. Because both a patch and an update can carry the same annotation write, count nodes by `protoPayload.resourceName` rather than by entry if you are tallying provisions.
 
 Run the automated diagnostic script to inspect your ComputeClass in real time:
 

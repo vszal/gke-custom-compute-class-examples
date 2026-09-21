@@ -1,0 +1,27 @@
+# Sample workload that targets the demo class. Scale it up and down to generate
+# provisioning events across more than one priority rule.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: priority-fulfillment-load
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: priority-fulfillment-load
+  template:
+    metadata:
+      labels:
+        app: priority-fulfillment-load
+    spec:
+      nodeSelector:
+        cloud.google.com/compute-class: priority-fulfillment
+      terminationGracePeriodSeconds: 0
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.9
+          resources:
+            requests:
+              # Sized so roughly one pod lands per node, making scale-up events easy
+              # to correlate with the chart.
+              cpu: 2500m

@@ -1,0 +1,200 @@
+{
+  "displayName": "ComputeClass priority-rule fulfillment",
+  "dashboardFilters": [
+    {
+      "filterType": "METRIC_LABEL",
+      "labelKey": "computeclass",
+      "templateVariable": "computeclass",
+      "stringValue": "priority-fulfillment"
+    }
+  ],
+  "mosaicLayout": {
+    "columns": 12,
+    "tiles": [
+      {
+        "xPos": 0,
+        "yPos": 0,
+        "width": 4,
+        "height": 3,
+        "widget": {
+          "title": "Capacity served by rule 0 (last 24h)",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "100 * sum(sum_over_time(ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",kind=\"rule\",priority=\"0\"}[24h])) / sum(sum_over_time(ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",kind=\"rule\"}[24h]))",
+              "unitOverride": "%"
+            },
+            "sparkChartView": {
+              "sparkChartType": "SPARK_LINE"
+            },
+            "thresholds": [
+              {
+                "value": 80,
+                "color": "YELLOW",
+                "direction": "BELOW"
+              },
+              {
+                "value": 50,
+                "color": "RED",
+                "direction": "BELOW"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "xPos": 4,
+        "yPos": 0,
+        "width": 4,
+        "height": 3,
+        "widget": {
+          "title": "vCPU-hours on fallback rules (last 24h)",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "sum(sum_over_time(ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",kind=\"rule\",priority!=\"0\"}[24h])) / 120 or vector(0)",
+              "unitOverride": "1"
+            },
+            "sparkChartView": {
+              "sparkChartType": "SPARK_LINE"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 8,
+        "yPos": 0,
+        "width": 4,
+        "height": 3,
+        "widget": {
+          "title": "Nodes provisioned per rule (last 24h)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by (priority) (increase(ccc_node_provisions_total{computeclass=~\"${computeclass.value}\"}[1h]))",
+                  "unitOverride": "1"
+                },
+                "plotType": "STACKED_BAR",
+                "legendTemplate": "rule ${priority}",
+                "targetAxis": "Y1"
+              }
+            ],
+            "yAxis": {
+              "label": "nodes provisioned",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 3,
+        "width": 12,
+        "height": 4,
+        "widget": {
+          "title": "vCPUs by priority rule (area = vCPU-hours)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by (priority) (ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\"})",
+                  "unitOverride": "1"
+                },
+                "plotType": "STACKED_AREA",
+                "legendTemplate": "rule ${priority}",
+                "targetAxis": "Y1"
+              }
+            ],
+            "yAxis": {
+              "label": "vCPUs",
+              "scale": "LINEAR"
+            },
+            "chartOptions": {
+              "mode": "COLOR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 7,
+        "width": 12,
+        "height": 4,
+        "widget": {
+          "title": "Share of delivered capacity by rule (%)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "100 * sum by (priority) (ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",kind=\"rule\"}) / ignoring(priority) group_left sum(ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",kind=\"rule\"})",
+                  "unitOverride": "%"
+                },
+                "plotType": "STACKED_AREA",
+                "legendTemplate": "rule ${priority}",
+                "targetAxis": "Y1"
+              }
+            ],
+            "yAxis": {
+              "label": "% of vCPUs",
+              "scale": "LINEAR"
+            },
+            "chartOptions": {
+              "mode": "COLOR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 11,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Nodes by priority rule (unweighted)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by (priority) (ccc_nodes_by_priority{computeclass=~\"${computeclass.value}\"})",
+                  "unitOverride": "1"
+                },
+                "plotType": "STACKED_AREA",
+                "legendTemplate": "rule ${priority}",
+                "targetAxis": "Y1"
+              }
+            ],
+            "yAxis": {
+              "label": "nodes",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 11,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Sentinel + unannotated nodes",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by (priority) (ccc_nodes_by_priority{computeclass=~\"${computeclass.value}\",kind!=\"rule\"})",
+                  "unitOverride": "1"
+                },
+                "plotType": "STACKED_AREA",
+                "legendTemplate": "${priority}",
+                "targetAxis": "Y1"
+              }
+            ],
+            "yAxis": {
+              "label": "nodes",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      }
+    ]
+  }
+}
