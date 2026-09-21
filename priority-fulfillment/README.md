@@ -190,7 +190,18 @@ gcloud monitoring dashboards create --config-from-file=dashboard-fleet.json  --p
 gcloud monitoring dashboards create --config-from-file=dashboard-health.json --project <project-id>
 ```
 
-Each ships with the `computeclass` template variable defaulting to `priority-fulfillment`, the demo class below. Pointing one at your own class is a one-field edit in the dashboard's filter bar — or change `stringValue` in the JSON before importing.
+Each ships with the `computeclass` template variable defaulting to `.*`, so an imported dashboard shows every class reporting in the project rather than opening blank. Narrow it to one class from the filter bar at the top, or set `stringValue` in the JSON before importing. **Do not default it to a class name that may not exist yet** — a dashboard whose filter names a missing class renders "No data is available for the selected time frame" on every tile, which looks identical to a broken exporter.
+
+**Time range is a URL concern, not a dashboard setting.** The Cloud Monitoring API has no dashboard-level default time range: `Dashboard` carries no such field, and the only `timeRange` available is per-widget, which *overrides* the time picker rather than seeding it (and is supported for line, stacked-area and stacked-bar widgets only, so scorecards would still disagree). The console therefore opens every dashboard at its own default of 1 hour. Since scale-up behaviour is easier to read over a day, bookmark the dashboard with an explicit duration instead:
+
+```
+https://console.cloud.google.com/monitoring/dashboards/builder/<dashboard-id>;duration=PT24H?project=<project-id>
+
+# with the class filter pinned too:
+https://console.cloud.google.com/monitoring/dashboards/builder/<dashboard-id>;duration=PT24H;filters=var:computeclass,val:<class-name>?project=<project-id>
+```
+
+`duration` takes an ISO-8601 period — `PT1H`, `PT6H`, `PT24H`, `P7D`.
 
 Generate some traffic across rules:
 

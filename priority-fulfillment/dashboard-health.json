@@ -5,7 +5,7 @@
       "filterType": "METRIC_LABEL",
       "labelKey": "computeclass",
       "templateVariable": "computeclass",
-      "stringValue": "priority-fulfillment"
+      "stringValue": ".*"
     }
   ],
   "mosaicLayout": {
