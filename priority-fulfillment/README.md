@@ -6,17 +6,7 @@ A ComputeClass states a preference; `kubectl get computeclass` shows only what i
 
 ## Prerequisites
 
-- **GKE 1.33+.** The `ccc_priority_index` annotation is undocumented and is not written on older versions — measured, not quoted:
-
-  | GKE version | Stamps `ccc_priority_index`? |
-  | --- | --- |
-  | 1.31.14-gke.2630000 | no |
-  | 1.32.13-gke.2337000 | no |
-  | 1.33.13-gke.1547000 | **yes** |
-  | 1.34.10-gke.1328000 | **yes** |
-  | 1.36.4-gke.1391000 | **yes** |
-
-  Nodes on 1.31/1.32 come up fine, they are simply never annotated. Check your cluster — note the key is bare `ccc_priority_index`, with **no `cloud.google.com/` prefix**:
+- **GKE 1.33+**, which is where nodes start carrying the `ccc_priority_index` annotation the exporter reads. Check your cluster — the key is bare `ccc_priority_index`, with **no `cloud.google.com/` prefix**:
 
   ```bash
   kubectl get nodes -o json | python3 -c "import json,sys
