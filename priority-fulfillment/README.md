@@ -48,7 +48,7 @@ So the headline unit here is **vCPU-time**:
 
 `ccc_nodes_by_priority` (raw node count) is also exported, and it is the right metric for the narrow case where every rule in a class provisions the same shape.
 
-`ccc_accelerators_by_priority` covers the case vCPUs get wrong. On an accelerator class the chip count, not the core count, is what you are ranking rules over and what dominates the bill — and two rules can deliver the same vCPUs while delivering different numbers of chips. It carries an `accelerator` label (`nvidia.com/gpu`, `google.com/tpu`) and is emitted only for rules actually running accelerators, so a CPU-only fleet sees nothing. It plots on the **right-hand axis** of the capacity tile, because a handful of chips against hundreds of vCPUs on one scale flattens to a line on the floor.
+`ccc_accelerators_by_priority` covers the case vCPUs get wrong. On an accelerator class the chip count, not the core count, is what you are ranking rules over and what dominates the bill — and two rules can deliver the same vCPUs while delivering different numbers of chips. It carries an `accelerator` label (`nvidia.com/gpu`, `google.com/tpu`) and is emitted only for rules actually running accelerators, so a CPU-only fleet sees nothing. It plots on the **right-hand axis** of the capacity tile, because a handful of chips against hundreds of vCPUs on one scale flattens to a line on the floor. Verified against a live GPU node: a two-rule class whose rule 0 is `n1-standard-2` + 1× T4 on spot reports `ccc_accelerators_by_priority{priority="0",accelerator="nvidia.com/gpu"} = 1` next to `ccc_vcpus_by_priority = 2` for the same node — which is exactly the divergence the metric exists to show.
 
 ## What this example shows
 
