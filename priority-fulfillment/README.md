@@ -182,7 +182,24 @@ kubectl -n ccc-observability port-forward deploy/ccc-priority-exporter 9100:9100
 curl -s localhost:9100/metrics | grep -v '^#'
 ```
 
-Import the dashboards (each is a separate dashboard; import whichever you want):
+## Install the dashboards
+
+The three dashboards are meant to be installed as-is in any Google Cloud project.
+`install-dashboards.sh` resolves the project, checks that the metrics they read
+are actually arriving, creates whichever are missing, and prints a
+bookmark-ready URL for each:
+
+```bash
+./install-dashboards.sh                  # the active gcloud project
+./install-dashboards.sh my-project       # an explicit project
+./install-dashboards.sh --update         # replace dashboards already installed
+./install-dashboards.sh --validate-only  # parse and validate, create nothing
+```
+
+Re-running it is safe: a dashboard already present (matched by display name) is
+left alone unless you pass `--update`.
+
+Or create them by hand, if you would rather see the plain commands:
 
 ```bash
 gcloud monitoring dashboards create --config-from-file=dashboard.json        --project <project-id>
@@ -190,9 +207,41 @@ gcloud monitoring dashboards create --config-from-file=dashboard-fleet.json  --p
 gcloud monitoring dashboards create --config-from-file=dashboard-health.json --project <project-id>
 ```
 
-Each ships with the `computeclass` template variable defaulting to `.*`, so an imported dashboard shows every class reporting in the project rather than opening blank. Narrow it to one class from the filter bar at the top, or set `stringValue` in the JSON before importing. **Do not default it to a class name that may not exist yet** — a dashboard whose filter names a missing class renders "No data is available for the selected time frame" on every tile, which looks identical to a broken exporter.
+`gcloud monitoring dashboards update` needs one thing the files deliberately do
+not carry: an `etag`. An etag identifies one installed copy, so committing it
+would make the JSON specific to a single project. The script reads the live etag
+and splices it in at update time; by hand, it is easier to delete the dashboard
+and create it again.
 
-**Time range is a URL concern, not a dashboard setting.** The Cloud Monitoring API has no dashboard-level default time range: `Dashboard` carries no such field, and the only `timeRange` available is per-widget, which *overrides* the time picker rather than seeding it (and is supported for line, stacked-area and stacked-bar widgets only, so scorecards would still disagree). The console therefore opens every dashboard at its own default of 1 hour. Since scale-up behaviour is easier to read over a day, bookmark the dashboard with an explicit duration instead:
+### What makes these portable
+
+- **No project, cluster, or ComputeClass names in the JSON.** Nothing to
+  find-and-replace before importing, and nothing project-specific to leak back
+  out when you edit one in the console and re-export it.
+- **Every template variable defaults to `.*`**, so a freshly imported dashboard
+  shows every class reporting in the project instead of opening blank. Narrow it
+  from the filter bar, or set `stringValue` in the JSON before importing. **Do
+  not default it to a class name that may not exist yet** — a dashboard whose
+  filter names a missing class renders "No data is available for the selected
+  time frame" on every tile, which looks exactly like a broken exporter.
+- **Two data sources, both standard.** `ccc_*` comes from `exporter.yaml`
+  through Managed Service for Prometheus. `kube_pod_status_unschedulable`, used
+  by the health dashboard's two pending-pod tiles, comes from GKE's managed
+  kube-state-metrics — enabled with
+  `gcloud container clusters update CLUSTER --location LOCATION --monitoring=SYSTEM,POD`.
+  Both of those queries end in `or vector(0)` so a healthy cluster reads `0`
+  rather than "No data" — which also means that without the `POD` package they
+  read a steady, believable zero forever. The script's preflight checks for it.
+- **Accelerators get their own tiles.** vCPUs, GPU chips and TPU chips are three
+  separate widgets rather than one chart with a second Y axis: the units do not
+  share a scale, and a fleet with no TPUs should show an empty TPU chart rather
+  than a legend entry that never plots. On a CPU-only fleet the exporter emits
+  no `ccc_accelerators_by_priority` at all, so both accelerator tiles sit empty
+  and cost nothing.
+
+### Time range is a URL concern, not a dashboard setting
+
+The Cloud Monitoring API has no dashboard-level default time range: `Dashboard` carries no such field, and the only `timeRange` available is per-widget, which *overrides* the time picker rather than seeding it (and is supported for line, stacked-area and stacked-bar widgets only, so scorecards would still disagree). The console therefore opens every dashboard at its own default of 1 hour. Since scale-up behaviour is easier to read over a day, bookmark the dashboard with an explicit duration instead:
 
 ```
 https://console.cloud.google.com/monitoring/dashboards/builder/<dashboard-id>;duration=PT24H?project=<project-id>
@@ -203,7 +252,7 @@ https://console.cloud.google.com/monitoring/dashboards/builder/<dashboard-id>;du
 
 `duration` takes an ISO-8601 period — `PT1H`, `PT6H`, `PT24H`, `P7D`.
 
-Generate some traffic across rules:
+## Generate some traffic across rules
 
 ```bash
 kubectl apply -f priority-fulfillment-class.yaml

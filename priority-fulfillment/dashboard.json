@@ -90,32 +90,16 @@
         "width": 12,
         "height": 4,
         "widget": {
-          "title": "Capacity by priority rule (vCPUs stacked, accelerators on right)",
+          "title": "vCPUs by priority rule",
           "xyChart": {
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "label_replace(sum by (priority) (ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\"}), \"priority\", \"rule $1 \u00b7 vCPU\", \"priority\", \"(.*)\")",
+                  "prometheusQuery": "label_replace(sum by (priority) (ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\"}), \"priority\", \"rule $1\", \"priority\", \"(.*)\")",
                   "unitOverride": "1"
                 },
                 "plotType": "STACKED_AREA",
                 "targetAxis": "Y1"
-              },
-              {
-                "timeSeriesQuery": {
-                  "prometheusQuery": "label_replace(sum by (priority) (ccc_accelerators_by_priority{computeclass=~\"${computeclass.value}\",accelerator=\"nvidia.com/gpu\"}), \"priority\", \"rule $1 \u00b7 GPU\", \"priority\", \"(.*)\")",
-                  "unitOverride": "1"
-                },
-                "plotType": "LINE",
-                "targetAxis": "Y2"
-              },
-              {
-                "timeSeriesQuery": {
-                  "prometheusQuery": "label_replace(sum by (priority) (ccc_accelerators_by_priority{computeclass=~\"${computeclass.value}\",accelerator=\"google.com/tpu\"}), \"priority\", \"rule $1 \u00b7 TPU\", \"priority\", \"(.*)\")",
-                  "unitOverride": "1"
-                },
-                "plotType": "LINE",
-                "targetAxis": "Y2"
               }
             ],
             "yAxis": {
@@ -124,10 +108,6 @@
             },
             "chartOptions": {
               "mode": "COLOR"
-            },
-            "y2Axis": {
-              "label": "accelerator chips",
-              "scale": "LINEAR"
             }
           }
         }
@@ -135,6 +115,62 @@
       {
         "xPos": 0,
         "yPos": 7,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "GPU chips by priority rule",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "label_replace(sum by (priority) (ccc_accelerators_by_priority{computeclass=~\"${computeclass.value}\",accelerator=\"nvidia.com/gpu\"}), \"priority\", \"rule $1\", \"priority\", \"(.*)\")",
+                  "unitOverride": "1"
+                },
+                "plotType": "STACKED_AREA",
+                "targetAxis": "Y1"
+              }
+            ],
+            "yAxis": {
+              "label": "GPU chips",
+              "scale": "LINEAR"
+            },
+            "chartOptions": {
+              "mode": "COLOR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 7,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "TPU chips by priority rule",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "label_replace(sum by (priority) (ccc_accelerators_by_priority{computeclass=~\"${computeclass.value}\",accelerator=\"google.com/tpu\"}), \"priority\", \"rule $1\", \"priority\", \"(.*)\")",
+                  "unitOverride": "1"
+                },
+                "plotType": "STACKED_AREA",
+                "targetAxis": "Y1"
+              }
+            ],
+            "yAxis": {
+              "label": "TPU chips",
+              "scale": "LINEAR"
+            },
+            "chartOptions": {
+              "mode": "COLOR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 11,
         "width": 12,
         "height": 4,
         "widget": {
@@ -162,7 +198,7 @@
       },
       {
         "xPos": 0,
-        "yPos": 11,
+        "yPos": 15,
         "width": 6,
         "height": 4,
         "widget": {
@@ -187,7 +223,7 @@
       },
       {
         "xPos": 6,
-        "yPos": 11,
+        "yPos": 15,
         "width": 6,
         "height": 4,
         "widget": {
