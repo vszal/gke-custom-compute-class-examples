@@ -56,5 +56,5 @@ Each folder has its own README with the full walkthrough.
 | [restrict-usage](./restrict-usage) | Govern a class: RBAC for who can edit it + a ValidatingAdmissionPolicy for who can request it |
 | [capacity-quota](./capacity-quota) | Limit ComputeClass scale-ups via a CapacityQuota custom resource |
 | [observability](./observability) | Traceability from pending pods to scaled nodes (`ccc_priority_index`), status conditions (`ProvisioningSuspended` vs `ProvisioningConstrained`), and hard stockout monitoring (1.36.4+) |
-| [priority-fulfillment](./priority-fulfillment) | Historical, vCPU-normalized dashboards of how often priority rule 0 was fulfilled vs. fallbacks, via a `ccc_priority_index` exporter and Managed Prometheus (1.36.4+). Three portable Cloud Monitoring dashboards, installed into any project with `./install-dashboards.sh` |
+| [priority-fulfillment](./priority-fulfillment) | Historical, capacity-normalized dashboards of how often priority rule 0 was fulfilled vs. fallbacks, via a `ccc_priority_index` exporter and Managed Prometheus (1.33+). Five portable Cloud Monitoring dashboards — one class, fleet by vCPU / GPU chip / TPU chip, and scale-up health — installed into any project with `./install-dashboards.sh` |
 

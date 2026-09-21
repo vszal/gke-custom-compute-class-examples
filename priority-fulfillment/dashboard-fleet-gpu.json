@@ -1,5 +1,5 @@
 {
-  "displayName": "ComputeClass fulfillment — fleet (vCPU)",
+  "displayName": "ComputeClass fulfillment — fleet (GPU)",
   "dashboardFilters": [
     {
       "filterType": "METRIC_LABEL",
@@ -26,7 +26,7 @@
           "title": "Fleet: capacity on rule 0 (24h)",
           "scorecard": {
             "timeSeriesQuery": {
-              "prometheusQuery": "100 * sum(sum_over_time(ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\",priority=\"0\"}[24h])) / sum(sum_over_time(ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\"}[24h]))",
+              "prometheusQuery": "100 * sum(sum_over_time(ccc_accelerators_by_priority{accelerator=\"nvidia.com/gpu\",computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\",priority=\"0\"}[24h])) / sum(sum_over_time(ccc_accelerators_by_priority{accelerator=\"nvidia.com/gpu\",computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\"}[24h]))",
               "unitOverride": "%"
             },
             "sparkChartView": {
@@ -53,10 +53,10 @@
         "width": 3,
         "height": 3,
         "widget": {
-          "title": "Fleet: vCPU-hours on fallback (24h)",
+          "title": "Fleet: GPU chip-hours on fallback (24h)",
           "scorecard": {
             "timeSeriesQuery": {
-              "prometheusQuery": "sum(sum_over_time(ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\",priority!=\"0\"}[24h])) / 120 or vector(0)",
+              "prometheusQuery": "sum(sum_over_time(ccc_accelerators_by_priority{accelerator=\"nvidia.com/gpu\",computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\",priority!=\"0\"}[24h])) / 120 or vector(0)",
               "unitOverride": "1"
             },
             "sparkChartView": {
@@ -71,10 +71,10 @@
         "width": 3,
         "height": 3,
         "widget": {
-          "title": "Fleet: total vCPU-hours (24h)",
+          "title": "Fleet: total GPU chip-hours (24h)",
           "scorecard": {
             "timeSeriesQuery": {
-              "prometheusQuery": "sum(sum_over_time(ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\"}[24h])) / 120 or vector(0)",
+              "prometheusQuery": "sum(sum_over_time(ccc_accelerators_by_priority{accelerator=\"nvidia.com/gpu\",computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\"}[24h])) / 120 or vector(0)",
               "unitOverride": "1"
             },
             "sparkChartView": {
@@ -92,7 +92,7 @@
           "title": "ComputeClasses reporting",
           "scorecard": {
             "timeSeriesQuery": {
-              "prometheusQuery": "count(count by (computeclass) (ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\"})) or vector(0)",
+              "prometheusQuery": "count(count by (computeclass) (ccc_accelerators_by_priority{accelerator=\"nvidia.com/gpu\",computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\"})) or vector(0)",
               "unitOverride": "1"
             },
             "sparkChartView": {
@@ -150,12 +150,12 @@
         "width": 6,
         "height": 3,
         "widget": {
-          "title": "Unattributable vCPUs by cluster (no annotation support)",
+          "title": "Unattributable GPU chips by cluster (no annotation support)",
           "xyChart": {
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (cluster) (ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"unsupported\"})",
+                  "prometheusQuery": "sum by (cluster) (ccc_accelerators_by_priority{accelerator=\"nvidia.com/gpu\",computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"unsupported\"})",
                   "unitOverride": "1"
                 },
                 "plotType": "STACKED_AREA",
@@ -163,7 +163,7 @@
               }
             ],
             "yAxis": {
-              "label": "vCPUs",
+              "label": "GPU chips",
               "scale": "LINEAR"
             }
           }
@@ -175,12 +175,12 @@
         "width": 6,
         "height": 4,
         "widget": {
-          "title": "Fleet vCPUs by priority rule (area = vCPU-hours)",
+          "title": "Fleet GPU chips by priority rule (area = GPU chip-hours)",
           "xyChart": {
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "label_replace(sum by (priority) (ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\"}), \"priority\", \"rule $1\", \"priority\", \"(.*)\")",
+                  "prometheusQuery": "label_replace(sum by (priority) (ccc_accelerators_by_priority{accelerator=\"nvidia.com/gpu\",computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\"}), \"priority\", \"rule $1\", \"priority\", \"(.*)\")",
                   "unitOverride": "1"
                 },
                 "plotType": "STACKED_AREA",
@@ -188,7 +188,7 @@
               }
             ],
             "yAxis": {
-              "label": "vCPUs",
+              "label": "GPU chips",
               "scale": "LINEAR"
             }
           }
@@ -200,12 +200,12 @@
         "width": 6,
         "height": 4,
         "widget": {
-          "title": "Fleet vCPUs by ComputeClass (cost attribution)",
+          "title": "Fleet GPU chips by ComputeClass (cost attribution)",
           "xyChart": {
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (computeclass) (ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\"})",
+                  "prometheusQuery": "sum by (computeclass) (ccc_accelerators_by_priority{accelerator=\"nvidia.com/gpu\",computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\"})",
                   "unitOverride": "1"
                 },
                 "plotType": "STACKED_AREA",
@@ -213,7 +213,7 @@
               }
             ],
             "yAxis": {
-              "label": "vCPUs",
+              "label": "GPU chips",
               "scale": "LINEAR"
             }
           }
@@ -230,7 +230,7 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "100 * sum by (computeclass) (sum_over_time(ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\",priority=\"0\"}[1h])) / sum by (computeclass) (sum_over_time(ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\"}[1h]))",
+                  "prometheusQuery": "100 * sum by (computeclass) (sum_over_time(ccc_accelerators_by_priority{accelerator=\"nvidia.com/gpu\",computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\",priority=\"0\"}[1h])) / sum by (computeclass) (sum_over_time(ccc_accelerators_by_priority{accelerator=\"nvidia.com/gpu\",computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\"}[1h]))",
                   "unitOverride": "%"
                 },
                 "plotType": "LINE",
@@ -250,12 +250,12 @@
         "width": 6,
         "height": 4,
         "widget": {
-          "title": "vCPUs by cluster (multi-cluster rollup)",
+          "title": "GPU chips by cluster (multi-cluster rollup)",
           "xyChart": {
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (cluster) (ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\"})",
+                  "prometheusQuery": "sum by (cluster) (ccc_accelerators_by_priority{accelerator=\"nvidia.com/gpu\",computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\"})",
                   "unitOverride": "1"
                 },
                 "plotType": "STACKED_AREA",
@@ -263,7 +263,7 @@
               }
             ],
             "yAxis": {
-              "label": "vCPUs",
+              "label": "GPU chips",
               "scale": "LINEAR"
             }
           }
@@ -280,7 +280,7 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "100 * sum by (cluster) (sum_over_time(ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\",priority=\"0\"}[1h])) / sum by (cluster) (sum_over_time(ccc_vcpus_by_priority{computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\"}[1h]))",
+                  "prometheusQuery": "100 * sum by (cluster) (sum_over_time(ccc_accelerators_by_priority{accelerator=\"nvidia.com/gpu\",computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\",priority=\"0\"}[1h])) / sum by (cluster) (sum_over_time(ccc_accelerators_by_priority{accelerator=\"nvidia.com/gpu\",computeclass=~\"${computeclass.value}\",cluster=~\"${cluster.value}\",kind=\"rule\"}[1h]))",
                   "unitOverride": "%"
                 },
                 "plotType": "LINE",

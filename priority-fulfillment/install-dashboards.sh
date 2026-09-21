@@ -7,11 +7,13 @@
 #   ./install-dashboards.sh my-project      # explicit project
 #   ./install-dashboards.sh --update        # replace dashboards already installed
 #   ./install-dashboards.sh --validate-only # parse + validate, create nothing
+#   ./install-dashboards.sh --all           # include accelerator variants with no data yet
 #
 # The dashboards read the metrics emitted by exporter.yaml through Google Cloud
 # Managed Service for Prometheus. They contain no project, cluster, or
 # ComputeClass names — every filter defaults to `.*` — so the same JSON installs
-# unchanged in any project.
+# unchanged in any project. The GPU and TPU fleet variants are skipped when the
+# project reports no chips of that kind; --all installs them regardless.
 #
 # Requirements: gcloud, curl. No jq, no Terraform, no local state.
 
@@ -19,16 +21,24 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-DASHBOARDS=(dashboard.json dashboard-health.json dashboard-fleet.json)
+DASHBOARDS=(
+  dashboard.json            # one ComputeClass, in detail
+  dashboard-health.json     # is scale-up working right now
+  dashboard-fleet.json      # every class and cluster, by vCPU
+  dashboard-fleet-gpu.json  # ... by GPU chip
+  dashboard-fleet-tpu.json  # ... by TPU chip
+)
 
 PROJECT=""
 UPDATE=false
 VALIDATE_ONLY=false
+ALL=false
 
 for arg in "$@"; do
   case "$arg" in
     --update)        UPDATE=true ;;
     --validate-only) VALIDATE_ONLY=true ;;
+    --all)           ALL=true ;;
     -h|--help)       sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*)              echo "unknown flag: $arg" >&2; exit 2 ;;
     *)               PROJECT="$arg" ;;
@@ -96,6 +106,18 @@ display_name() {
     || grep -m1 '"displayName"' "$1" | sed 's/.*"displayName" *: *"\(.*\)".*/\1/'
 }
 
+# A dashboard whose every tile is blank is indistinguishable from a broken
+# exporter, so the accelerator variants are only installed when the fleet
+# actually reports that kind of chip. --all overrides, for a fleet that will
+# have TPUs next week.
+guard_query() {
+  case "$1" in
+    dashboard-fleet-gpu.json) echo 'ccc_accelerators_by_priority{accelerator="nvidia.com/gpu"}' ;;
+    dashboard-fleet-tpu.json) echo 'ccc_accelerators_by_priority{accelerator="google.com/tpu"}' ;;
+    *) echo "" ;;
+  esac
+}
+
 existing_id() {
   gcloud monitoring dashboards list --project="$PROJECT" \
     --filter="displayName=\"$1\"" --format="value(name)" 2>/dev/null | head -n1
@@ -105,6 +127,14 @@ for f in "${DASHBOARDS[@]}"; do
   name="$(display_name "$f")"
   echo
   echo "== $f — \"$name\""
+
+  guard="$(guard_query "$f")"
+  if [[ -n "$guard" && -n "$TOKEN" ]] && ! $ALL && ! $VALIDATE_ONLY; then
+    if [[ "$(promq "$guard")" == *'"result":[]'* ]]; then
+      echo "  · skipped: no such accelerator reporting in this project (pass --all to install anyway)"
+      continue
+    fi
+  fi
 
   if $VALIDATE_ONLY; then
     gcloud monitoring dashboards create --project="$PROJECT" \
