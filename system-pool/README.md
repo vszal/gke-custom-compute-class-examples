@@ -3,8 +3,10 @@
 This example stops singleton `kube-system` pods from pinning expensive nodes and
 blocking the autoscaler from consolidating them.
 
-> **Requires GKE 1.33.1-gke.1788000+** for namespace-level default classes — the
-> `cloud.google.com/default-compute-class-non-daemonset` label this example relies on.
+> **Requires GKE 1.34.1-gke.2541000+.** Two features gate this example: the
+> `cloud.google.com/default-compute-class-non-daemonset` namespace label
+> (1.33.1-gke.1788000+) and `location.locationPolicy` (1.34.1-gke.2541000+), which is
+> the binding constraint. Drop the `location` block entirely if you need the lower floor.
 
 > **No Deployment here.** Unlike the other examples, the binding is a **label on
 > the `kube-system` namespace**, not a workload you apply. The class captures the

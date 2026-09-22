@@ -4,7 +4,9 @@ A ComputeClass pinned to a single **large** machine shape is a common way to end
 up with pods stuck `Pending`. This example shows why, and how a smaller-shape
 fallback fixes it — along with the one case where that fallback does **not** help.
 
-> **Requires GKE 1.32.1-gke.1729000+** for `priorityDefaults`, which this class uses.
+> **Requires GKE 1.34.1-gke.2541000+.** This class uses `priorityDefaults`
+> (1.32.1-gke.1729000+) and `location.locationPolicy` (1.34.1-gke.2541000+); the latter
+> is the binding constraint.
 
 ## The problem: large shapes are scarcer
 

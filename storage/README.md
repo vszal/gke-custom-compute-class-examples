@@ -3,8 +3,10 @@
 Customize a node's **boot disk** (type/size) and attach **local SSD** through the
 `storage` field of a priority rule.
 
-> **Requires GKE 1.34.1-gke.1431000+** for `storage.bootDiskType` and
-> `storage.bootDiskSize`.
+> **Requires GKE 1.30.3-gke.1639000+.** `storage.bootDiskType` / `storage.bootDiskSize`
+> carry two different floors: 1.34.1-gke.1431000+ on `machineFamily` priority rules, and
+> 1.30.3-gke.1639000+ on every other rule type. This example pins exact `machineType`
+> shapes, so the lower floor applies. `storage.localSSDCount` states no requirement.
 
 ## What this example shows
 

@@ -8,6 +8,9 @@ low-QPS inference pod; time-sharing reclaims that idle silicon.
 `nvidia.com/gpu`, so four pods that each request `gpu: 1` schedule onto the same
 card and the GPU context-switches between them.
 
+> **Requires GKE 1.35.2-gke.1485000+** for `gpu.gpuSharing` — `sharingStrategy`,
+> `maxSharedClientsPerGPU` and `gpuPartitionSize` all carry that floor.
+
 > **Check regional availability first.** `g2` (NVIDIA L4) is not offered in every
 > region — `southamerica-east1` has none, for example. GKE does **not** validate machine types at admission, so in a region
 > without it this class applies cleanly and then never provisions a node — every

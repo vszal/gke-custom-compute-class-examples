@@ -4,6 +4,10 @@ This example runs a stateful PostgreSQL **primary** on GKE with a ComputeClass
 tuned for the constraints stateful databases actually have: a zonal persistent
 volume, no tolerance for preemption, and a single disk generation.
 
+> **Requires GKE 1.34.1-gke.1431000+** for `storage.bootDiskType` /
+> `storage.bootDiskSize`, which carry that floor on the `machineFamily` priority
+> rules this class uses (other rule types need only 1.30.3-gke.1639000+).
+
 > **Pinned to `us-central1` — edit before applying.** The zones here are
 > load-bearing (a zonal reservation and a zonal PV must share a zone with their
 > node), and unlike machine types, zones **are** validated at admission: GKE

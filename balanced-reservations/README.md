@@ -5,6 +5,10 @@ three zones — at **both** the node layer and the pod layer — and walks throu
 the schema traps that bite people the first time they wire reservations into a
 ComputeClass.
 
+> **Requires GKE 1.34.1-gke.2541000+** for `location.locationPolicy`, which this
+> class uses. (The `AnyThenFail` reservation affinity discussed below is a separate,
+> optional path that needs 1.36.0+.)
+
 > **Pinned to `us-central1` — edit before applying.** The zones here are
 > load-bearing (a zonal reservation and a zonal PV must share a zone with their
 > node), and unlike machine types, zones **are** validated at admission: GKE
