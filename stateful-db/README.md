@@ -4,6 +4,12 @@ This example runs a stateful PostgreSQL **primary** on GKE with a ComputeClass
 tuned for the constraints stateful databases actually have: a zonal persistent
 volume, no tolerance for preemption, and a single disk generation.
 
+> **Pinned to `us-central1` — edit before applying.** The zones here are
+> load-bearing (a zonal reservation and a zonal PV must share a zone with their
+> node), and unlike machine types, zones **are** validated at admission: GKE
+> Warden rejects the apply outright with `contains zones unsupported by the
+> cluster`. Change every `zones:` entry to match your cluster's region first.
+
 ## Why each design choice
 
 ### Zone-pinned for PersistentVolume affinity

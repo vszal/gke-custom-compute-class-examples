@@ -39,7 +39,9 @@ spec:
     reservations:
       affinity: Specific   # Or AnyThenFail (GKE 1.36+). never AnyBestEffort — it consumes On-Demand capacity before evaluating lower priorities
       specific:
-      - name: postgres-primary-reservation   # <-- your reservation name
+      - name: <YOUR-RESERVATION-NAME>   # <-- replace. Reservation NAMES are not
+                                       # validated at admission: a wrong one applies
+                                       # cleanly and then never matches.
         zones: ['us-central1-a']             # zone scope lives here
     storage:
       bootDiskType: hyperdisk-balanced

@@ -21,6 +21,11 @@ labels — GKE derives the slice from the class. The pod requests the chips via 
 > reservation in production (uncomment the top priority) and keep Spot as the
 > fallback for preemptible/batch work.
 
+> **Requires GKE 1.31.2-gke.1518000+** for the `tpu` field on a priority rule.
+> TPU availability is far narrower than GPU or CPU — confirm your region offers the
+> slice type you want before applying, since an unavailable `tpu` block is accepted
+> at admission and simply never provisions.
+
 ## Deploy & observe
 
 ```bash

@@ -23,6 +23,12 @@ the object.
 The protected class here is [`restricted-class.yaml`](./restricted-class.yaml) — a
 GPU class (`gpu-restricted`) that's costly to leave open.
 
+> **Check regional availability first.** `g4` (NVIDIA RTX PRO 6000) is not offered in every
+> region. GKE does **not** validate machine types at admission, so in a region
+> without it this class applies cleanly and then never provisions a node — every
+> priority here is `g4`, so no fallback catches the gap. Verify with
+> `gcloud compute machine-types list --filter="name~^g4- AND zone~^REGION-"`.
+
 ## Control 1 — lock down CRUD with RBAC
 
 [`rbac-editor.yaml`](./rbac-editor.yaml) grants the mutating verbs only to a Google

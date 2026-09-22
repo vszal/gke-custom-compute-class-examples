@@ -3,6 +3,9 @@
 Customize a node's **boot disk** (type/size) and attach **local SSD** through the
 `storage` field of a priority rule.
 
+> **Requires GKE 1.34.1-gke.1431000+** for `storage.bootDiskType` and
+> `storage.bootDiskSize`.
+
 ## What this example shows
 
 [`lssd-class.yaml`](./lssd-class.yaml) provisions c3 (then c3d) nodes with a tuned

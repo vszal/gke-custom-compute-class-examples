@@ -6,6 +6,12 @@ provisions from a custom ComputeClass instead of the tutorial's accelerator
 ladder (On-Demand primary, Spot as last resort) and hosts one NVIDIA RTX PRO
 6000 per `g4-standard-48` node.
 
+> **Check regional availability first.** `g4` (NVIDIA RTX PRO 6000) is not offered in every
+> region. GKE does **not** validate machine types at admission, so in a region
+> without it this class applies cleanly and then never provisions a node — every
+> priority here is `g4`, so no fallback catches the gap. Verify with
+> `gcloud compute machine-types list --filter="name~^g4- AND zone~^REGION-"`.
+
 1. Follow the general instructions in the [Google Cloud vLLM Gemma tutorial](https://cloud.google.com/kubernetes-engine/docs/tutorials/serve-gemma-gpu-vllm) through the model-access/credentials section (stop before deploying vLLM)
 
 2. Deploy the custom compute class:

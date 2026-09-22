@@ -3,6 +3,9 @@
 This example stops singleton `kube-system` pods from pinning expensive nodes and
 blocking the autoscaler from consolidating them.
 
+> **Requires GKE 1.33.1-gke.1788000+** for namespace-level default classes — the
+> `cloud.google.com/default-compute-class-non-daemonset` label this example relies on.
+
 > **No Deployment here.** Unlike the other examples, the binding is a **label on
 > the `kube-system` namespace**, not a workload you apply. The class captures the
 > system pods that are already running.
@@ -63,8 +66,18 @@ Existing system pods **do not reschedule on their own** — the class only affec
 pods as they're (re)created. Wait for natural restarts, or force them:
 
 ```bash
-kubectl rollout restart deployment -n kube-system metrics-server
-kubectl rollout restart deployment -n kube-system coredns
+kubectl rollout restart deployment -n kube-system kube-dns
+kubectl rollout restart deployment -n kube-system -l k8s-app=metrics-server
+```
+
+**Don't reach for the upstream Kubernetes names here.** GKE runs **`kube-dns`**,
+not `coredns`, and its metrics server carries a version suffix that moves with the
+control plane (`metrics-server-v1.36.0` at time of writing), so a bare
+`metrics-server` misses too — hence the label selector above. Check what your
+cluster actually runs before restarting anything:
+
+```bash
+kubectl get deployment -n kube-system
 ```
 
 ## Verify

@@ -8,6 +8,14 @@ it — capacity you often can't get on-demand becomes reachable.
 Set with `flexStart.enabled: true` on a priority rule. This example queues for an
 L4 via flex-start, then falls back to Spot if the queue is slow.
 
+> **Requires GKE 1.32.2-gke.1652000+** for flex-start with queued provisioning.
+
+> **Check regional availability first.** `g2` (NVIDIA L4) is not offered in every
+> region — `southamerica-east1` has none, for example. GKE does **not** validate machine types at admission, so in a region
+> without it this class applies cleanly and then never provisions a node — every
+> priority here is `g2`, so no fallback catches the gap. Verify with
+> `gcloud compute machine-types list --filter="name~^g2- AND zone~^REGION-"`.
+
 ## flex-start vs the serving ladder
 
 | | flex-start (this example) | On-Demand serving ([../gpu-accelerator](../gpu-accelerator)) |

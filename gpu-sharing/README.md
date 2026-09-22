@@ -8,6 +8,12 @@ low-QPS inference pod; time-sharing reclaims that idle silicon.
 `nvidia.com/gpu`, so four pods that each request `gpu: 1` schedule onto the same
 card and the GPU context-switches between them.
 
+> **Check regional availability first.** `g2` (NVIDIA L4) is not offered in every
+> region — `southamerica-east1` has none, for example. GKE does **not** validate machine types at admission, so in a region
+> without it this class applies cleanly and then never provisions a node — every
+> priority here is `g2`, so no fallback catches the gap. Verify with
+> `gcloud compute machine-types list --filter="name~^g2- AND zone~^REGION-"`.
+
 ## The three sharing strategies
 
 | Strategy | Field | Isolation | Use for |
