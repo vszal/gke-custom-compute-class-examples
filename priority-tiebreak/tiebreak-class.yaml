@@ -14,7 +14,9 @@ spec:
   # Defaults applied to every priority that doesn't set its own location.
   priorityDefaults:
     location:
-      zones: ['us-central1-a', 'us-central1-b', 'us-central1-c']
+      # No `zones`: the class spans the cluster's whole region, so this file is
+      # region-portable. Set `zones: [...]` here (or on a single priority
+      # below) only when you want to deliberately narrow where nodes land.
       locationPolicy: ANY
 
   # priorityScore semantics:
@@ -52,13 +54,12 @@ spec:
     spot: false
     priorityScore: 50
 
-  # --- Tier 3 (score 10): e2 floor with a wider zone net to guarantee execution ---
+  # --- Tier 3 (score 10): e2 floor — the broadest-availability family, so this
+  # tier is the one that actually guarantees execution when Gen-4 and Gen-2 are
+  # both short. It inherits the region-wide default location above.
   - machineFamily: e2
     minCores: 8
     spot: false
-    location:
-      zones: ['us-central1-a', 'us-central1-b', 'us-central1-c', 'us-central1-f']
-      locationPolicy: ANY
     priorityScore: 10
 
   # All tiers exhausted -> still scale up rather than leave pods Pending.

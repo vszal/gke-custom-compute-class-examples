@@ -28,7 +28,7 @@ The tiers in [`tiebreak-class.yaml`](./tiebreak-class.yaml):
 |-------|-----------------|-------------------------------------------------|
 | 100   | c4d, c4, n4     | Top tier — three equivalent Gen-4 On-Demand     |
 | 50    | n2, n2d         | Fallback — Gen-2, broader availability          |
-| 10    | e2              | Floor — widest zone net, guarantees execution   |
+| 10    | e2              | Floor — broadest-availability family, guarantees execution |
 
 ## Requirements
 

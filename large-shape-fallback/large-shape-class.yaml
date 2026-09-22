@@ -21,7 +21,8 @@ spec:
     enabled: true
   priorityDefaults:
     location:
-      zones: ['us-central1-a', 'us-central1-b', 'us-central1-c']
+      # No `zones`: the class spans the cluster's whole region, so this file is
+      # region-portable. Add `zones: [...]` only to deliberately narrow it.
       locationPolicy: ANY
   priorities:
   # Priority 1 — preferred LARGE shape (48 vCPU).
