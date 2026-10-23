@@ -71,9 +71,11 @@ kubectl delete namespace team-a --ignore-not-found
 kubectl delete namespace restricted-demo --ignore-not-found
 ```
 
-> **Note on `restrict-usage`:** its `rbac-editor.yaml` and `restrict-usage-vap.yaml`
-> are not `*class.yaml`/workload files, so they're outside the loops above — apply and
-> clean them up per that folder's README when validating the deny behavior.
+> **Note on specialized templates (`restrict-usage`, `agent-sandbox-gvisor`, `agent-substrate-microvm`):**
+> - `restrict-usage`: `rbac-editor.yaml` and `restrict-usage-vap.yaml` validate RBAC and admission denial.
+> - `agent-sandbox-gvisor`: `agent-sandbox-gvisor-template.yaml` validates `SandboxTemplate`, `SandboxWarmPool`, and `SandboxClaim` when the GKE Agent Sandbox addon is enabled.
+> - `agent-substrate-microvm`: `agent-substrate-microvm-pool.yaml` validates `WorkerPool` and `ActorTemplate` when Agent Substrate CRDs are installed.
+> Each folder also includes a standard `*deploy.yaml` tested by the automated loop above.
 
 ---
 

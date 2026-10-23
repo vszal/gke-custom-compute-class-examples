@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-substrate-microvm-worker
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agent-substrate-microvm-worker
+  template:
+    metadata:
+      labels:
+        app: agent-substrate-microvm-worker
+    spec:
+      runtimeClassName: microvm
+      nodeSelector:
+        cloud.google.com/compute-class: agent-substrate-microvm
+      tolerations:
+      - key: sandbox.gke.io/runtime
+        operator: Equal
+        value: microvm
+        effect: NoSchedule
+      containers:
+      - name: worker
+        image: registry.k8s.io/pause:latest
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
