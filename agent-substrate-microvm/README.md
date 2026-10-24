@@ -141,3 +141,21 @@ kubectl exec "${POD_NAME}" -- uname -a
 
 Inside a `microvm` pod, the container runs under a guest Linux kernel managed by Kata Containers
 and Cloud Hypervisor, isolated from the underlying node host kernel.
+
+---
+
+## Interactive demo: GKE Agent Substrate - scale performance control tower (`./scale-demo`)
+
+For a full end-to-end interactive control tower and observability dashboard demonstrating `0` to `2,000` agent surge scaling across dual sandbox runtimes (`microVM (Kata)` and `gVisor (runsc)`), a 5-tier `ComputeClass` (`c3` &rarr; `n4` &rarr; `c4` &rarr; `c2` &rarr; `n2`), per-family `CapacityQuota`s, and hybrid Active + S3-suspended Standby `CapacityBuffer`s on port `8881`, see **[`./scale-demo/README.md`](./scale-demo/README.md)**.
+
+The control tower allows toggling between `microVM (Kata)` and `gVisor (runsc)` live from the UI or via `./run-local.sh --runtime gvisor`, dynamically reconciling `Deployment`s, `WorkerPool`s, and `CapacityBuffer` templates across runtime tiers.
+
+![GKE Agent Substrate - scale performance control tower](./scale-demo/images/screenshot-timeseries.png)
+
+```bash
+cd scale-demo
+./install.sh
+./run-local.sh
+# Open http://localhost:8881
+```
+

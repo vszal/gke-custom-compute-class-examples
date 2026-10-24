@@ -1,0 +1,601 @@
+# Active + Multi-Family Standby CapacityBuffers for Agent Substrate (microVM & gVisor)
+# Includes PodTemplates for both `agent-substrate-microvm` (runtimeClassName: microvm)
+# and `agent-substrate-gvisor` (runtimeClassName: gvisor) so the Control Tower can
+# live-switch active and standby CapacityBuffers between sandbox runtimes.
+apiVersion: v1
+kind: PodTemplate
+metadata:
+  name: agent-microvm-buffer-template
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    buffer-tier: active
+    sandbox-runtime: microvm
+template:
+  metadata:
+    labels:
+      app.kubernetes.io/part-of: ccc-agents
+      app: agent-active-buffer-pod
+  spec:
+    runtimeClassName: microvm
+    terminationGracePeriodSeconds: 0
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-microvm
+    tolerations:
+    - key: "sandbox.gke.io/runtime"
+      operator: "Equal"
+      value: "microvm"
+      effect: "NoSchedule"
+    containers:
+    - name: buffer-container
+      image: registry.k8s.io/pause:3.9
+      resources:
+        requests:
+          cpu: "6"
+          memory: "24Gi"
+        limits:
+          cpu: "6"
+          memory: "24Gi"
+---
+apiVersion: v1
+kind: PodTemplate
+metadata:
+  name: agent-gvisor-buffer-template
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    buffer-tier: active
+    sandbox-runtime: gvisor
+template:
+  metadata:
+    labels:
+      app.kubernetes.io/part-of: ccc-agents
+      app: agent-active-buffer-pod
+  spec:
+    runtimeClassName: gvisor
+    automountServiceAccountToken: false
+    terminationGracePeriodSeconds: 0
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-gvisor
+    tolerations:
+    - key: "sandbox.gke.io/runtime"
+      operator: "Equal"
+      value: "gvisor"
+      effect: "NoSchedule"
+    containers:
+    - name: buffer-container
+      image: registry.k8s.io/pause:3.9
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+      resources:
+        requests:
+          cpu: "6"
+          memory: "24Gi"
+        limits:
+          cpu: "6"
+          memory: "24Gi"
+---
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityBuffer
+metadata:
+  name: agent-active-buffer
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    buffer-strategy: active
+spec:
+  podTemplateRef:
+    name: agent-microvm-buffer-template
+  replicas: 2
+  provisioningStrategy: "buffer.x-k8s.io/active-capacity"
+---
+apiVersion: v1
+kind: PodTemplate
+metadata:
+  name: agent-microvm-buffer-c3
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    machine-family: c3
+    sandbox-runtime: microvm
+template:
+  metadata:
+    labels:
+      app.kubernetes.io/part-of: ccc-agents
+      app: agent-standby-buffer-pod
+      machine-family: c3
+  spec:
+    runtimeClassName: microvm
+    terminationGracePeriodSeconds: 0
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-microvm
+      node.kubernetes.io/instance-type: c3-standard-8
+    tolerations:
+    - key: "sandbox.gke.io/runtime"
+      operator: "Equal"
+      value: "microvm"
+      effect: "NoSchedule"
+    containers:
+    - name: buffer-container
+      image: registry.k8s.io/pause:3.9
+      resources:
+        requests:
+          cpu: "6"
+          memory: "24Gi"
+        limits:
+          cpu: "6"
+          memory: "24Gi"
+---
+apiVersion: v1
+kind: PodTemplate
+metadata:
+  name: agent-gvisor-buffer-c3
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    machine-family: c3
+    sandbox-runtime: gvisor
+template:
+  metadata:
+    labels:
+      app.kubernetes.io/part-of: ccc-agents
+      app: agent-standby-buffer-pod
+      machine-family: c3
+  spec:
+    runtimeClassName: gvisor
+    automountServiceAccountToken: false
+    terminationGracePeriodSeconds: 0
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-gvisor
+      node.kubernetes.io/instance-type: c3-standard-8
+    tolerations:
+    - key: "sandbox.gke.io/runtime"
+      operator: "Equal"
+      value: "gvisor"
+      effect: "NoSchedule"
+    containers:
+    - name: buffer-container
+      image: registry.k8s.io/pause:3.9
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+      resources:
+        requests:
+          cpu: "6"
+          memory: "24Gi"
+        limits:
+          cpu: "6"
+          memory: "24Gi"
+---
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityBuffer
+metadata:
+  name: agent-standby-buffer-c3
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    buffer-strategy: standby
+    machine-family: c3
+  annotations:
+    buffer.gke.io/standby-capacity-init-time: "2m"
+    buffer.gke.io/standby-capacity-refresh-frequency: "24h"
+spec:
+  podTemplateRef:
+    name: agent-microvm-buffer-c3
+  replicas: 1
+  provisioningStrategy: "buffer.gke.io/standby-capacity"
+---
+apiVersion: v1
+kind: PodTemplate
+metadata:
+  name: agent-microvm-buffer-n4
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    machine-family: n4
+    sandbox-runtime: microvm
+template:
+  metadata:
+    labels:
+      app.kubernetes.io/part-of: ccc-agents
+      app: agent-standby-buffer-pod
+      machine-family: n4
+  spec:
+    runtimeClassName: microvm
+    terminationGracePeriodSeconds: 0
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-microvm
+      node.kubernetes.io/instance-type: n4-standard-8
+    tolerations:
+    - key: "sandbox.gke.io/runtime"
+      operator: "Equal"
+      value: "microvm"
+      effect: "NoSchedule"
+    containers:
+    - name: buffer-container
+      image: registry.k8s.io/pause:3.9
+      resources:
+        requests:
+          cpu: "6"
+          memory: "24Gi"
+        limits:
+          cpu: "6"
+          memory: "24Gi"
+---
+apiVersion: v1
+kind: PodTemplate
+metadata:
+  name: agent-gvisor-buffer-n4
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    machine-family: n4
+    sandbox-runtime: gvisor
+template:
+  metadata:
+    labels:
+      app.kubernetes.io/part-of: ccc-agents
+      app: agent-standby-buffer-pod
+      machine-family: n4
+  spec:
+    runtimeClassName: gvisor
+    automountServiceAccountToken: false
+    terminationGracePeriodSeconds: 0
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-gvisor
+      node.kubernetes.io/instance-type: n4-standard-8
+    tolerations:
+    - key: "sandbox.gke.io/runtime"
+      operator: "Equal"
+      value: "gvisor"
+      effect: "NoSchedule"
+    containers:
+    - name: buffer-container
+      image: registry.k8s.io/pause:3.9
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+      resources:
+        requests:
+          cpu: "6"
+          memory: "24Gi"
+        limits:
+          cpu: "6"
+          memory: "24Gi"
+---
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityBuffer
+metadata:
+  name: agent-standby-buffer-n4
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    buffer-strategy: standby
+    machine-family: n4
+  annotations:
+    buffer.gke.io/standby-capacity-init-time: "2m"
+    buffer.gke.io/standby-capacity-refresh-frequency: "24h"
+spec:
+  podTemplateRef:
+    name: agent-microvm-buffer-n4
+  replicas: 1
+  provisioningStrategy: "buffer.gke.io/standby-capacity"
+---
+apiVersion: v1
+kind: PodTemplate
+metadata:
+  name: agent-microvm-buffer-c4
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    machine-family: c4
+    sandbox-runtime: microvm
+template:
+  metadata:
+    labels:
+      app.kubernetes.io/part-of: ccc-agents
+      app: agent-standby-buffer-pod
+      machine-family: c4
+  spec:
+    runtimeClassName: microvm
+    terminationGracePeriodSeconds: 0
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-microvm
+      node.kubernetes.io/instance-type: c4-standard-8
+    tolerations:
+    - key: "sandbox.gke.io/runtime"
+      operator: "Equal"
+      value: "microvm"
+      effect: "NoSchedule"
+    containers:
+    - name: buffer-container
+      image: registry.k8s.io/pause:3.9
+      resources:
+        requests:
+          cpu: "6"
+          memory: "24Gi"
+        limits:
+          cpu: "6"
+          memory: "24Gi"
+---
+apiVersion: v1
+kind: PodTemplate
+metadata:
+  name: agent-gvisor-buffer-c4
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    machine-family: c4
+    sandbox-runtime: gvisor
+template:
+  metadata:
+    labels:
+      app.kubernetes.io/part-of: ccc-agents
+      app: agent-standby-buffer-pod
+      machine-family: c4
+  spec:
+    runtimeClassName: gvisor
+    automountServiceAccountToken: false
+    terminationGracePeriodSeconds: 0
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-gvisor
+      node.kubernetes.io/instance-type: c4-standard-8
+    tolerations:
+    - key: "sandbox.gke.io/runtime"
+      operator: "Equal"
+      value: "gvisor"
+      effect: "NoSchedule"
+    containers:
+    - name: buffer-container
+      image: registry.k8s.io/pause:3.9
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+      resources:
+        requests:
+          cpu: "6"
+          memory: "24Gi"
+        limits:
+          cpu: "6"
+          memory: "24Gi"
+---
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityBuffer
+metadata:
+  name: agent-standby-buffer-c4
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    buffer-strategy: standby
+    machine-family: c4
+  annotations:
+    buffer.gke.io/standby-capacity-init-time: "2m"
+    buffer.gke.io/standby-capacity-refresh-frequency: "24h"
+spec:
+  podTemplateRef:
+    name: agent-microvm-buffer-c4
+  replicas: 1
+  provisioningStrategy: "buffer.gke.io/standby-capacity"
+---
+apiVersion: v1
+kind: PodTemplate
+metadata:
+  name: agent-microvm-buffer-c2
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    machine-family: c2
+    sandbox-runtime: microvm
+template:
+  metadata:
+    labels:
+      app.kubernetes.io/part-of: ccc-agents
+      app: agent-standby-buffer-pod
+      machine-family: c2
+  spec:
+    runtimeClassName: microvm
+    terminationGracePeriodSeconds: 0
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-microvm
+      node.kubernetes.io/instance-type: c2-standard-8
+    tolerations:
+    - key: "sandbox.gke.io/runtime"
+      operator: "Equal"
+      value: "microvm"
+      effect: "NoSchedule"
+    containers:
+    - name: buffer-container
+      image: registry.k8s.io/pause:3.9
+      resources:
+        requests:
+          cpu: "6"
+          memory: "24Gi"
+        limits:
+          cpu: "6"
+          memory: "24Gi"
+---
+apiVersion: v1
+kind: PodTemplate
+metadata:
+  name: agent-gvisor-buffer-c2
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    machine-family: c2
+    sandbox-runtime: gvisor
+template:
+  metadata:
+    labels:
+      app.kubernetes.io/part-of: ccc-agents
+      app: agent-standby-buffer-pod
+      machine-family: c2
+  spec:
+    runtimeClassName: gvisor
+    automountServiceAccountToken: false
+    terminationGracePeriodSeconds: 0
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-gvisor
+      node.kubernetes.io/instance-type: c2-standard-8
+    tolerations:
+    - key: "sandbox.gke.io/runtime"
+      operator: "Equal"
+      value: "gvisor"
+      effect: "NoSchedule"
+    containers:
+    - name: buffer-container
+      image: registry.k8s.io/pause:3.9
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+      resources:
+        requests:
+          cpu: "6"
+          memory: "24Gi"
+        limits:
+          cpu: "6"
+          memory: "24Gi"
+---
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityBuffer
+metadata:
+  name: agent-standby-buffer-c2
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    buffer-strategy: standby
+    machine-family: c2
+  annotations:
+    buffer.gke.io/standby-capacity-init-time: "2m"
+    buffer.gke.io/standby-capacity-refresh-frequency: "24h"
+spec:
+  podTemplateRef:
+    name: agent-microvm-buffer-c2
+  replicas: 1
+  provisioningStrategy: "buffer.gke.io/standby-capacity"
+---
+apiVersion: v1
+kind: PodTemplate
+metadata:
+  name: agent-microvm-buffer-n2
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    machine-family: n2
+    sandbox-runtime: microvm
+template:
+  metadata:
+    labels:
+      app.kubernetes.io/part-of: ccc-agents
+      app: agent-standby-buffer-pod
+      machine-family: n2
+  spec:
+    runtimeClassName: microvm
+    terminationGracePeriodSeconds: 0
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-microvm
+      node.kubernetes.io/instance-type: n2-standard-8
+    tolerations:
+    - key: "sandbox.gke.io/runtime"
+      operator: "Equal"
+      value: "microvm"
+      effect: "NoSchedule"
+    containers:
+    - name: buffer-container
+      image: registry.k8s.io/pause:3.9
+      resources:
+        requests:
+          cpu: "6"
+          memory: "24Gi"
+        limits:
+          cpu: "6"
+          memory: "24Gi"
+---
+apiVersion: v1
+kind: PodTemplate
+metadata:
+  name: agent-gvisor-buffer-n2
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    machine-family: n2
+    sandbox-runtime: gvisor
+template:
+  metadata:
+    labels:
+      app.kubernetes.io/part-of: ccc-agents
+      app: agent-standby-buffer-pod
+      machine-family: n2
+  spec:
+    runtimeClassName: gvisor
+    automountServiceAccountToken: false
+    terminationGracePeriodSeconds: 0
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-gvisor
+      node.kubernetes.io/instance-type: n2-standard-8
+    tolerations:
+    - key: "sandbox.gke.io/runtime"
+      operator: "Equal"
+      value: "gvisor"
+      effect: "NoSchedule"
+    containers:
+    - name: buffer-container
+      image: registry.k8s.io/pause:3.9
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+      resources:
+        requests:
+          cpu: "6"
+          memory: "24Gi"
+        limits:
+          cpu: "6"
+          memory: "24Gi"
+---
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityBuffer
+metadata:
+  name: agent-standby-buffer-n2
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    buffer-strategy: standby
+    machine-family: n2
+  annotations:
+    buffer.gke.io/standby-capacity-init-time: "2m"
+    buffer.gke.io/standby-capacity-refresh-frequency: "24h"
+spec:
+  podTemplateRef:
+    name: agent-microvm-buffer-n2
+  replicas: 2
+  provisioningStrategy: "buffer.gke.io/standby-capacity"

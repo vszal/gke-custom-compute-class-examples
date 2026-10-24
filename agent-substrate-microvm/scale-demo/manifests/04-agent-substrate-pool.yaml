@@ -1,0 +1,199 @@
+apiVersion: ate.dev/v1alpha1
+kind: WorkerPool
+metadata:
+  name: agent-substrate-microvm-pool
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    sandbox-runtime: microvm
+spec:
+  replicas: 0
+  template:
+    metadata:
+      labels:
+        app: agent-substrate-microvm-worker
+        app.kubernetes.io/part-of: ccc-agents
+    spec:
+      runtimeClassName: microvm
+      terminationGracePeriodSeconds: 0
+      nodeSelector:
+        cloud.google.com/compute-class: agent-substrate-microvm
+      tolerations:
+      - key: "sandbox.gke.io/runtime"
+        operator: "Equal"
+        value: "microvm"
+        effect: "NoSchedule"
+      containers:
+      - name: agent-runtime
+        image: registry.k8s.io/pause:3.9
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+---
+apiVersion: ate.dev/v1alpha1
+kind: ActorTemplate
+metadata:
+  name: autonomous-coding-agent
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    sandbox-runtime: microvm
+spec:
+  actorType: coding-agent
+  workerPoolRef:
+    name: agent-substrate-microvm-pool
+  actorsPerWorker: 2
+  snapshotStrategy: on-demand
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-substrate-microvm-workers
+  namespace: agent-substrate-demo
+  labels:
+    app: agent-substrate-microvm-worker
+    app.kubernetes.io/part-of: ccc-agents
+    sandbox-runtime: microvm
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: agent-substrate-microvm-worker
+  template:
+    metadata:
+      labels:
+        app: agent-substrate-microvm-worker
+        app.kubernetes.io/part-of: ccc-agents
+    spec:
+      runtimeClassName: microvm
+      terminationGracePeriodSeconds: 0
+      nodeSelector:
+        cloud.google.com/compute-class: agent-substrate-microvm
+      tolerations:
+      - key: "sandbox.gke.io/runtime"
+        operator: "Equal"
+        value: "microvm"
+        effect: "NoSchedule"
+      containers:
+      - name: agent-runtime
+        image: registry.k8s.io/pause:3.9
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+---
+apiVersion: ate.dev/v1alpha1
+kind: WorkerPool
+metadata:
+  name: agent-substrate-gvisor-pool
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    sandbox-runtime: gvisor
+spec:
+  replicas: 0
+  template:
+    metadata:
+      labels:
+        app: agent-substrate-gvisor-worker
+        app.kubernetes.io/part-of: ccc-agents
+    spec:
+      runtimeClassName: gvisor
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 0
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      nodeSelector:
+        cloud.google.com/compute-class: agent-substrate-gvisor
+      tolerations:
+      - key: "sandbox.gke.io/runtime"
+        operator: "Equal"
+        value: "gvisor"
+        effect: "NoSchedule"
+      containers:
+      - name: agent-runtime
+        image: registry.k8s.io/pause:3.9
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+---
+apiVersion: ate.dev/v1alpha1
+kind: ActorTemplate
+metadata:
+  name: autonomous-coding-agent-gvisor
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+    sandbox-runtime: gvisor
+spec:
+  actorType: coding-agent
+  workerPoolRef:
+    name: agent-substrate-gvisor-pool
+  actorsPerWorker: 2
+  snapshotStrategy: on-demand
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-substrate-gvisor-workers
+  namespace: agent-substrate-demo
+  labels:
+    app: agent-substrate-gvisor-worker
+    app.kubernetes.io/part-of: ccc-agents
+    sandbox-runtime: gvisor
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: agent-substrate-gvisor-worker
+  template:
+    metadata:
+      labels:
+        app: agent-substrate-gvisor-worker
+        app.kubernetes.io/part-of: ccc-agents
+    spec:
+      runtimeClassName: gvisor
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 0
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      nodeSelector:
+        cloud.google.com/compute-class: agent-substrate-gvisor
+      tolerations:
+      - key: "sandbox.gke.io/runtime"
+        operator: "Equal"
+        value: "gvisor"
+        effect: "NoSchedule"
+      containers:
+      - name: agent-runtime
+        image: registry.k8s.io/pause:3.9
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi

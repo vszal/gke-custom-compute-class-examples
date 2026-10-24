@@ -8,21 +8,23 @@
 #
 # 2. Status priority mapping:
 #    Each entry in status.priorityStatuses[] reports an `identifier` matching its index ("0", "1", "2").
-#    When `whenUnsatisfiable: ScaleUpAnyway` is used, a synthetic entry with `identifier: "ScaleUpAnyway"`
-#    is appended to status.priorityStatuses[].
+#    When `whenUnsatisfiable: ScaleUpAnyway` is used, GKE appends two entries to status.priorityStatuses[]:
+#    an implicit numeric rung one past spec.priorities ("3" here, carrying active provisioning conditions)
+#    and a synthetic entry with `identifier: "ScaleUpAnyway"`.
 #    In this manifest, `whenUnsatisfiable: DoNotScaleUp` is explicitly set so workloads fail rather than
 #    spilling into default E2 nodes when all preferred tiers are unavailable.
 #
 # 3. Node annotation contract:
 #    Nodes provisioned by the GKE Cluster Autoscaler for this ComputeClass carry the label:
 #      cloud.google.com/compute-class: observability-class
-#    and the annotation:
+#    and the annotation (GKE 1.33.13+, bare key with no cloud.google.com/ prefix):
 #      ccc_priority_index: "<index>"
 #    Possible values for ccc_priority_index:
 #      - "0", "1", "2": The 0-based priority rule index that provisioned the node.
 #      - "ccc_scale_up_anyway": Node provisioned via fallback when whenUnsatisfiable: ScaleUpAnyway.
-#      - "ccc_no_rule_matching": Node provisioned without matching any priority rule or manual pool.
-#      - "ccc_deleted": Priority rule that created the node has since been removed from spec.priorities.
+#      - "ccc_no_rule_matching": ComputeClass exists, but no current rule matches (including when the
+#        priority rule that created the node was subsequently removed from spec.priorities).
+#      - "ccc_deleted": The parent ComputeClass object itself has been deleted.
 apiVersion: cloud.google.com/v1
 kind: ComputeClass
 metadata:

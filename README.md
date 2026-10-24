@@ -58,5 +58,5 @@ Each folder has its own README with the full walkthrough.
 | [observability](./observability) | Traceability from pending pods to scaled nodes (`ccc_priority_index`), status conditions (`ProvisioningSuspended` vs `ProvisioningConstrained`), and hard stockout monitoring (1.36.4+) |
 | [priority-fulfillment](./priority-fulfillment) | Historical, capacity-normalized dashboards of how often priority rule 0 was fulfilled vs. fallbacks, via a `ccc_priority_index` exporter and Managed Prometheus (1.33+). Five portable Cloud Monitoring dashboards — one class, fleet by vCPU / GPU chip / TPU chip, and scale-up health — installed into any project with `./install-dashboards.sh` |
 | [agent-sandbox-gvisor](./agent-sandbox-gvisor) | GKE Agent Sandbox: gVisor container sandboxing + warm pool claiming + hybrid On-Demand ladder |
-| [agent-substrate-microvm](./agent-substrate-microvm) | Agent Substrate: hardware-isolated microVMs + nested virtualization for sub-500ms suspend/resume |
+| [agent-substrate-microvm](./agent-substrate-microvm) | Agent Substrate: hardware-isolated microVMs + nested virtualization for sub-500ms suspend/resume, plus the interactive [GKE Agent Substrate - scale performance control tower](./agent-substrate-microvm/scale-demo) |
 

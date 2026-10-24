@@ -3,4 +3,9 @@ status.sh
 skills-lock.json
 docs/
 .agent_resume
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+
 
