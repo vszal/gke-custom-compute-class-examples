@@ -101,7 +101,7 @@ install_substrate() {
   echo "Preflight checks..."
   if ! kubectl ate --help &>/dev/null; then
     echo "Error: the kubectl-ate plugin is not on PATH. It is a separate binary you build from source:" >&2
-    echo "  git clone --branch <your Substrate version> https://github.com/agent-substrate/substrate.git" >&2
+    echo "  git clone --branch <upstream tag matching ate-system, e.g. v0.4.0 for v0.4.0-gke.0> https://github.com/agent-substrate/substrate.git" >&2
     echo "  cd substrate && go install ./cmd/kubectl-ate    # needs Go 1.27+; installs to \$(go env GOPATH)/bin" >&2
     echo "Then add that bin directory to PATH. (go install ...@latest does not work: the module uses replace directives.)" >&2
     exit 1
