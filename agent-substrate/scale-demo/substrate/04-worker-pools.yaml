@@ -1,0 +1,283 @@
+# Substrate mode: one real WorkerPool per (runtime, machine family). Each pool pins one
+# rule of the runtime's ComputeClass, so a pool's workers all share one CPU platform and
+# one TSC frequency -- a FULL (memory) snapshot taken on one only restores on the same.
+# The control tower sets spec.replicas, moving demand down the ladder when a family
+# cannot get capacity. Start at zero; nothing runs until you scale in the dashboard.
+apiVersion: ate.dev/v1alpha1
+kind: WorkerPool
+metadata:
+  name: microvm-c4
+  namespace: agent-substrate-demo
+  labels:
+    # Substrate copies these onto the pool's workers; the ActorTemplate
+    # microvm-c4 selects on them, which is what keeps a snapshot on the hardware
+    # it was taken on.
+    ate.dev/cpu-family: c4
+    ate.dev/sandbox-runtime: microvm
+    app.kubernetes.io/part-of: ccc-agents
+spec:
+  replicas: 0
+  sandboxClass: microvm
+  workerImage: __MICROVM_WORKER_IMAGE__
+  template:
+    labels:
+      app: agent-substrate-microvm-worker
+      machine-family: c4
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-microvm
+      node.kubernetes.io/instance-type: c4-standard-8
+    resources:
+      limits:
+        cpu: "1"
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 1Gi
+---
+apiVersion: ate.dev/v1alpha1
+kind: WorkerPool
+metadata:
+  name: microvm-n4
+  namespace: agent-substrate-demo
+  labels:
+    # Substrate copies these onto the pool's workers; the ActorTemplate
+    # microvm-n4 selects on them, which is what keeps a snapshot on the hardware
+    # it was taken on.
+    ate.dev/cpu-family: n4
+    ate.dev/sandbox-runtime: microvm
+    app.kubernetes.io/part-of: ccc-agents
+spec:
+  replicas: 0
+  sandboxClass: microvm
+  workerImage: __MICROVM_WORKER_IMAGE__
+  template:
+    labels:
+      app: agent-substrate-microvm-worker
+      machine-family: n4
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-microvm
+      node.kubernetes.io/instance-type: n4-standard-8
+    resources:
+      limits:
+        cpu: "1"
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 1Gi
+---
+apiVersion: ate.dev/v1alpha1
+kind: WorkerPool
+metadata:
+  name: microvm-c3
+  namespace: agent-substrate-demo
+  labels:
+    # Substrate copies these onto the pool's workers; the ActorTemplate
+    # microvm-c3 selects on them, which is what keeps a snapshot on the hardware
+    # it was taken on.
+    ate.dev/cpu-family: c3
+    ate.dev/sandbox-runtime: microvm
+    app.kubernetes.io/part-of: ccc-agents
+spec:
+  replicas: 0
+  sandboxClass: microvm
+  workerImage: __MICROVM_WORKER_IMAGE__
+  template:
+    labels:
+      app: agent-substrate-microvm-worker
+      machine-family: c3
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-microvm
+      node.kubernetes.io/instance-type: c3-standard-8
+    resources:
+      limits:
+        cpu: "1"
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 1Gi
+---
+apiVersion: ate.dev/v1alpha1
+kind: WorkerPool
+metadata:
+  name: gvisor-c4
+  namespace: agent-substrate-demo
+  labels:
+    # Substrate copies these onto the pool's workers; the ActorTemplate
+    # gvisor-c4 selects on them, which is what keeps a snapshot on the hardware
+    # it was taken on.
+    ate.dev/cpu-family: c4
+    ate.dev/sandbox-runtime: gvisor
+    app.kubernetes.io/part-of: ccc-agents
+spec:
+  replicas: 0
+  sandboxClass: gvisor
+  workerImage: __GVISOR_WORKER_IMAGE__
+  template:
+    labels:
+      app: agent-substrate-gvisor-worker
+      machine-family: c4
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-gvisor
+      node.kubernetes.io/instance-type: c4-standard-8
+    resources:
+      limits:
+        cpu: "1"
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 1Gi
+---
+apiVersion: ate.dev/v1alpha1
+kind: WorkerPool
+metadata:
+  name: gvisor-c4d
+  namespace: agent-substrate-demo
+  labels:
+    # Substrate copies these onto the pool's workers; the ActorTemplate
+    # gvisor-c4d selects on them, which is what keeps a snapshot on the hardware
+    # it was taken on.
+    ate.dev/cpu-family: c4d
+    ate.dev/sandbox-runtime: gvisor
+    app.kubernetes.io/part-of: ccc-agents
+spec:
+  replicas: 0
+  sandboxClass: gvisor
+  workerImage: __GVISOR_WORKER_IMAGE__
+  template:
+    labels:
+      app: agent-substrate-gvisor-worker
+      machine-family: c4d
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-gvisor
+      node.kubernetes.io/instance-type: c4d-standard-8
+    resources:
+      limits:
+        cpu: "1"
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 1Gi
+---
+apiVersion: ate.dev/v1alpha1
+kind: WorkerPool
+metadata:
+  name: gvisor-n4
+  namespace: agent-substrate-demo
+  labels:
+    # Substrate copies these onto the pool's workers; the ActorTemplate
+    # gvisor-n4 selects on them, which is what keeps a snapshot on the hardware
+    # it was taken on.
+    ate.dev/cpu-family: n4
+    ate.dev/sandbox-runtime: gvisor
+    app.kubernetes.io/part-of: ccc-agents
+spec:
+  replicas: 0
+  sandboxClass: gvisor
+  workerImage: __GVISOR_WORKER_IMAGE__
+  template:
+    labels:
+      app: agent-substrate-gvisor-worker
+      machine-family: n4
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-gvisor
+      node.kubernetes.io/instance-type: n4-standard-8
+    resources:
+      limits:
+        cpu: "1"
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 1Gi
+---
+apiVersion: ate.dev/v1alpha1
+kind: WorkerPool
+metadata:
+  name: gvisor-n4d
+  namespace: agent-substrate-demo
+  labels:
+    # Substrate copies these onto the pool's workers; the ActorTemplate
+    # gvisor-n4d selects on them, which is what keeps a snapshot on the hardware
+    # it was taken on.
+    ate.dev/cpu-family: n4d
+    ate.dev/sandbox-runtime: gvisor
+    app.kubernetes.io/part-of: ccc-agents
+spec:
+  replicas: 0
+  sandboxClass: gvisor
+  workerImage: __GVISOR_WORKER_IMAGE__
+  template:
+    labels:
+      app: agent-substrate-gvisor-worker
+      machine-family: n4d
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-gvisor
+      node.kubernetes.io/instance-type: n4d-standard-8
+    resources:
+      limits:
+        cpu: "1"
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 1Gi
+---
+apiVersion: ate.dev/v1alpha1
+kind: WorkerPool
+metadata:
+  name: gvisor-c3
+  namespace: agent-substrate-demo
+  labels:
+    # Substrate copies these onto the pool's workers; the ActorTemplate
+    # gvisor-c3 selects on them, which is what keeps a snapshot on the hardware
+    # it was taken on.
+    ate.dev/cpu-family: c3
+    ate.dev/sandbox-runtime: gvisor
+    app.kubernetes.io/part-of: ccc-agents
+spec:
+  replicas: 0
+  sandboxClass: gvisor
+  workerImage: __GVISOR_WORKER_IMAGE__
+  template:
+    labels:
+      app: agent-substrate-gvisor-worker
+      machine-family: c3
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-gvisor
+      node.kubernetes.io/instance-type: c3-standard-8
+    resources:
+      limits:
+        cpu: "1"
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 1Gi
+---
+apiVersion: ate.dev/v1alpha1
+kind: WorkerPool
+metadata:
+  name: gvisor-c3d
+  namespace: agent-substrate-demo
+  labels:
+    # Substrate copies these onto the pool's workers; the ActorTemplate
+    # gvisor-c3d selects on them, which is what keeps a snapshot on the hardware
+    # it was taken on.
+    ate.dev/cpu-family: c3d
+    ate.dev/sandbox-runtime: gvisor
+    app.kubernetes.io/part-of: ccc-agents
+spec:
+  replicas: 0
+  sandboxClass: gvisor
+  workerImage: __GVISOR_WORKER_IMAGE__
+  template:
+    labels:
+      app: agent-substrate-gvisor-worker
+      machine-family: c3d
+    nodeSelector:
+      cloud.google.com/compute-class: agent-substrate-gvisor
+      node.kubernetes.io/instance-type: c3d-standard-8
+    resources:
+      limits:
+        cpu: "1"
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 1Gi

@@ -1,0 +1,121 @@
+# Agent Substrate WorkerPools, one per lineage class in agent-substrate-class.yaml.
+#
+# - Namespace = atespace. Create both first:
+#     kubectl create namespace agents && kubectl ate create atespace agents
+# - An ActorTemplate's workerSelector matches WorkerPool METADATA labels (not pod labels).
+#   Every pool in one lineage carries the same ate.dev/lineage value, and no pool carries two.
+#   Editing a pool's labels retargets it without restarting its workers.
+# - template.nodeSelector names only the compute class. The class pins the family. Adding
+#   node.kubernetes.io/instance-type would also disable the class's size fallback, and GKE
+#   warns that it is not recommended alongside a ComputeClass. (The gvisor-golden pool is the
+#   one exception: it pins a zone, see below.)
+# - One worker runs one actor at a time. replicas = actors you want running concurrently.
+# - ActorTemplates are not Kubernetes objects. Create them with `kubectl ate` from
+#   actor-template.yaml.tmpl (see README).
+# - Workers request the ate.dev/kvm device, which exists only after atelet is running on a
+#   node. Cluster autoscaler can't create a pool's first node for them, so pair each microVM
+#   pool with a seed Deployment (agent-substrate-microvm-deploy.yaml).
+---
+# microVM lineage 1 (C4)
+apiVersion: ate.dev/v1alpha1
+kind: WorkerPool
+metadata:
+  name: microvm-c4
+  namespace: agents
+  labels:
+    ate.dev/lineage: microvm-c4
+spec:
+  replicas: 2
+  sandboxClass: microvm
+  workerImage: us-docker.pkg.dev/gke-substrate-release/substrate/ateom-microvm:v0.4.0-gke.0@sha256:f6b83b9c22eb7213f51ce48659ca8ca7d5cc72c7e17e8fc12d5501629f4328f0
+  template:
+    nodeSelector:
+      cloud.google.com/compute-class: substrate-microvm-c4
+    resources:
+      requests: {cpu: 250m, memory: 1Gi}
+      limits: {cpu: "1", memory: 1Gi}
+---
+# microVM lineage 2 (N4): scale up together with its seed when you need it.
+apiVersion: ate.dev/v1alpha1
+kind: WorkerPool
+metadata:
+  name: microvm-n4
+  namespace: agents
+  labels:
+    ate.dev/lineage: microvm-n4
+spec:
+  replicas: 0
+  sandboxClass: microvm
+  workerImage: us-docker.pkg.dev/gke-substrate-release/substrate/ateom-microvm:v0.4.0-gke.0@sha256:f6b83b9c22eb7213f51ce48659ca8ca7d5cc72c7e17e8fc12d5501629f4328f0
+  template:
+    nodeSelector:
+      cloud.google.com/compute-class: substrate-microvm-n4
+    resources:
+      requests: {cpu: 250m, memory: 1Gi}
+      limits: {cpu: "1", memory: 1Gi}
+---
+# gVisor lineage (C3), golden pool. It carries the lineage label from the start, so the
+# golden snapshot is built here. The host must lack tsc_deadline_timer, which varies by
+# zone, so this pool (and only this pool) is pinned to a zone that lacks it. Edit the zone
+# for your region, and check the host (see README) before creating the template.
+apiVersion: ate.dev/v1alpha1
+kind: WorkerPool
+metadata:
+  name: gvisor-golden
+  namespace: agents
+  labels:
+    ate.dev/lineage: gvisor-c3
+spec:
+  replicas: 1
+  sandboxClass: gvisor
+  workerImage: us-docker.pkg.dev/gke-substrate-release/substrate/ateom-gvisor:v0.4.0-gke.0@sha256:082d12264a06658368796f3e4681039224dcbeb9b7acbcfaa5e35e1878116f79
+  template:
+    nodeSelector:
+      cloud.google.com/compute-class: substrate-gvisor-c3
+      topology.kubernetes.io/zone: us-central1-f
+    resources:
+      requests: {cpu: 250m, memory: 1Gi}
+      limits: {cpu: "1", memory: 1Gi}
+---
+# gVisor lineage (C3), serving pool in every zone. It starts WITHOUT the lineage label. Add
+# the label only after the ActorTemplate reports a golden snapshot:
+#   kubectl -n agents label workerpool gvisor-c3 ate.dev/lineage=gvisor-c3
+apiVersion: ate.dev/v1alpha1
+kind: WorkerPool
+metadata:
+  name: gvisor-c3
+  namespace: agents
+  labels:
+    ate.dev/lineage-pending: gvisor-c3
+spec:
+  replicas: 2
+  sandboxClass: gvisor
+  workerImage: us-docker.pkg.dev/gke-substrate-release/substrate/ateom-gvisor:v0.4.0-gke.0@sha256:082d12264a06658368796f3e4681039224dcbeb9b7acbcfaa5e35e1878116f79
+  template:
+    nodeSelector:
+      cloud.google.com/compute-class: substrate-gvisor-c3
+    resources:
+      requests: {cpu: 250m, memory: 1Gi}
+      limits: {cpu: "1", memory: 1Gi}
+---
+# ADVANCED, NOT SUPPORTED by GKE's Agent Substrate docs (see substrate-gvisor-mixed).
+# Widens the C3 gVisor lineage onto N4 and C4. Scale it up and label it in only after the
+# golden exists:
+#   kubectl -n agents label workerpool gvisor-mixed ate.dev/lineage=gvisor-c3
+apiVersion: ate.dev/v1alpha1
+kind: WorkerPool
+metadata:
+  name: gvisor-mixed
+  namespace: agents
+  labels:
+    ate.dev/lineage-pending: gvisor-c3
+spec:
+  replicas: 0
+  sandboxClass: gvisor
+  workerImage: us-docker.pkg.dev/gke-substrate-release/substrate/ateom-gvisor:v0.4.0-gke.0@sha256:082d12264a06658368796f3e4681039224dcbeb9b7acbcfaa5e35e1878116f79
+  template:
+    nodeSelector:
+      cloud.google.com/compute-class: substrate-gvisor-mixed
+    resources:
+      requests: {cpu: 250m, memory: 1Gi}
+      limits: {cpu: "1", memory: 1Gi}

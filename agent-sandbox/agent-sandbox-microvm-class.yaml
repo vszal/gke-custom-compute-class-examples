@@ -1,0 +1,32 @@
+# ComputeClass for GKE Agent Sandbox with microVMs (RuntimeClass microvm, handler kata-clh).
+#
+# - sandbox.type: microvm gives nodes the sandbox.gke.io/runtime=microvm label and taint.
+# - The CRD requires nested virtualization on every auto-created rule. Set it in
+#   priorityDefaults. nodePoolConfig.enableNestedVirtualization is rejected.
+# - Intel only. C4D and C3D don't expose nested virtualization to guests, and N4D isn't
+#   covered by this example.
+# - The microvm RuntimeClass adds 250m CPU / 130Mi memory of pod overhead. Include it when
+#   you size nodes.
+# - Agent Sandbox takes no microVM snapshots, so families can mix freely. Every session
+#   starts cold, and a restarted pod is a new session (see README).
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: agent-sandbox-microvm
+spec:
+  nodePoolConfig:
+    sandbox:
+      type: microvm
+  priorityDefaults:
+    enableNestedVirtualization: true
+  priorities:
+  - machineType: n4-standard-8
+  - machineType: c4-standard-8
+  - machineType: c3-standard-8
+  - machineType: n4-standard-16
+  - machineType: c4-standard-16
+  activeMigration:
+    optimizeRulePriority: false
+  nodePoolAutoCreation:
+    enabled: true
+  whenUnsatisfiable: DoNotScaleUp

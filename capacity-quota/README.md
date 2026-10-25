@@ -5,6 +5,10 @@ Define granular resource limits for the GKE cluster autoscaler using a **Capacit
 ## Prerequisites
 
 - Requires GKE **1.36.2-gke.2064000+** on either GKE Standard or Autopilot.
+- Regional Compute Engine CPU quota for the fallback families (`CPUS_PER_VM_FAMILY`).
+  CapacityQuota is a cluster-side cap; if the *project* quota for a family is lower,
+  that family is skipped with `QuotaExceeded` and the spill goes one rule further.
+  See [Compute Engine quotas](https://docs.cloud.google.com/compute/resource-usage).
 - See the [authoritative CapacityQuota documentation](https://cloud.google.com/kubernetes-engine/docs/how-to/configure-capacity-quotas#select-node-labels).
 
 ## What this example shows
@@ -88,16 +92,21 @@ Inspect the `status` field of the CapacityQuota resource:
 kubectl describe capacityquota n4-quota
 ```
 
-The status output confirms that `n4` usage is capped at `8` CPUs while the remaining workload runs on fallback families:
+The status output confirms that `n4` usage stays at or below `8` CPUs (whole nodes count, so it can be less: three `n4-highcpu-2` nodes report `6`) while the remaining workload runs on fallback families:
 
 ```yaml
 status:
   conditions:
   - lastTransitionTime: "2026-07-31T21:30:00Z"
     message: "CapacityQuota is valid"
-    reason: "Valid"
+    reason: "ValidationSucceeded"
     status: "True"
     type: "cluster-autoscaler.kubernetes.io/valid"
+  - lastTransitionTime: "2026-07-31T21:30:00Z"
+    message: "CapacityQuota successfully reconciled"
+    reason: "ReconciliationSucceeded"
+    status: "True"
+    type: "Reconciled"
   used:
     resources:
       cpu: 8

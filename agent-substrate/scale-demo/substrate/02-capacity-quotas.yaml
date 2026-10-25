@@ -1,0 +1,139 @@
+# Substrate mode: class-wide cap plus one cap per machine family in the ladder.
+# c3 is capped at 24 vCPU to match the project's regional C3 quota.
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityQuota
+metadata:
+  name: agent-substrate-class-cap
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+spec:
+  selector:
+    matchExpressions:
+    - key: cloud.google.com/compute-class
+      operator: In
+      values:
+      - agent-substrate-microvm
+      - agent-substrate-gvisor
+  limits:
+    resources:
+      cpu: 720
+---
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityQuota
+metadata:
+  name: c4-tier-cap
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+spec:
+  selector:
+    matchLabels:
+      cloud.google.com/machine-family: c4
+    matchExpressions:
+    - key: cloud.google.com/compute-class
+      operator: In
+      values:
+      - agent-substrate-microvm
+      - agent-substrate-gvisor
+  limits:
+    resources:
+      cpu: 96
+---
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityQuota
+metadata:
+  name: c4d-tier-cap
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+spec:
+  selector:
+    matchLabels:
+      cloud.google.com/machine-family: c4d
+    matchExpressions:
+    - key: cloud.google.com/compute-class
+      operator: In
+      values:
+      - agent-substrate-microvm
+      - agent-substrate-gvisor
+  limits:
+    resources:
+      cpu: 96
+---
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityQuota
+metadata:
+  name: n4-tier-cap
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+spec:
+  selector:
+    matchLabels:
+      cloud.google.com/machine-family: n4
+    matchExpressions:
+    - key: cloud.google.com/compute-class
+      operator: In
+      values:
+      - agent-substrate-microvm
+      - agent-substrate-gvisor
+  limits:
+    resources:
+      cpu: 96
+---
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityQuota
+metadata:
+  name: n4d-tier-cap
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+spec:
+  selector:
+    matchLabels:
+      cloud.google.com/machine-family: n4d
+    matchExpressions:
+    - key: cloud.google.com/compute-class
+      operator: In
+      values:
+      - agent-substrate-microvm
+      - agent-substrate-gvisor
+  limits:
+    resources:
+      cpu: 96
+---
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityQuota
+metadata:
+  name: c3-tier-cap
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+spec:
+  selector:
+    matchLabels:
+      cloud.google.com/machine-family: c3
+    matchExpressions:
+    - key: cloud.google.com/compute-class
+      operator: In
+      values:
+      - agent-substrate-microvm
+      - agent-substrate-gvisor
+  limits:
+    resources:
+      cpu: 24
+---
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityQuota
+metadata:
+  name: c3d-tier-cap
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+spec:
+  selector:
+    matchLabels:
+      cloud.google.com/machine-family: c3d
+    matchExpressions:
+    - key: cloud.google.com/compute-class
+      operator: In
+      values:
+      - agent-substrate-microvm
+      - agent-substrate-gvisor
+  limits:
+    resources:
+      cpu: 96

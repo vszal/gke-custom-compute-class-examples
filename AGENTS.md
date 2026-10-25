@@ -66,15 +66,19 @@ for f in $(find . -maxdepth 2 -name "*class.yaml" -o -name "*class*.yaml"); do
   kubectl delete -f "$f" --ignore-not-found
 done
 
+# restrict-usage admission policy, binding and RBAC (cluster-scoped, outlive the namespace)
+kubectl delete -f restrict-usage/restrict-usage-vap.yaml -f restrict-usage/rbac-editor.yaml --ignore-not-found
+
 # Delete custom namespaces
 kubectl delete namespace team-a --ignore-not-found
 kubectl delete namespace restricted-demo --ignore-not-found
+kubectl delete namespace ccc-observability --ignore-not-found
 ```
 
-> **Note on specialized templates (`restrict-usage`, `agent-sandbox-gvisor`, `agent-substrate-microvm`):**
+> **Note on specialized templates (`restrict-usage`, `agent-sandbox`, `agent-substrate`):**
 > - `restrict-usage`: `rbac-editor.yaml` and `restrict-usage-vap.yaml` validate RBAC and admission denial.
-> - `agent-sandbox-gvisor`: `agent-sandbox-gvisor-template.yaml` validates `SandboxTemplate`, `SandboxWarmPool`, and `SandboxClaim` when the GKE Agent Sandbox addon is enabled.
-> - `agent-substrate-microvm`: `agent-substrate-microvm-pool.yaml` validates `WorkerPool` and `ActorTemplate` when Agent Substrate CRDs are installed.
+> - `agent-sandbox`: `agent-sandbox-template.yaml` validates `SandboxTemplate`, `SandboxWarmPool`, and `SandboxClaim` (gVisor and microVM) when the GKE Agent Sandbox addon is enabled. `agent-sandbox-gvisor-snapshots.yaml` and `agent-sandbox-gvisor-rootfs-snapshots.yaml` additionally need the Pod Snapshots CRDs (`--enable-pod-snapshots`).
+> - `agent-substrate`: `agent-substrate-pool.yaml` validates `WorkerPool` when Agent Substrate CRDs are installed (it needs the `agents` namespace). `actor-template.yaml.tmpl` is protojson for `kubectl ate create actor-template`, not a Kubernetes object, and has no server dry-run.
 > Each folder also includes a standard `*deploy.yaml` tested by the automated loop above.
 
 ---

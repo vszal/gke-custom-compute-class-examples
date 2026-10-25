@@ -9,6 +9,9 @@ The deploy requests **128 GiB against 2 vCPU**: a ratio a general-purpose family
 can't satisfy without a huge, wasteful node, but a natural fit for the m-series.
 
 - `machineFamily: m4` (current gen) with `m3` as fallback.
+- **Quota:** the project needs regional CPU quota for the M4 family (`CPUS_PER_VM_FAMILY`).
+  Many projects start with little or none, and then every pod lands on `m3`. Check
+  **IAM & Admin → Quotas**; see [Compute Engine quotas](https://docs.cloud.google.com/compute/resource-usage).
 - `whenUnsatisfiable: DoNotScaleUp` is deliberate — if no memory-optimized node is
   available, the pod stays **Pending** rather than landing on a general-purpose
   node that can't hold the working set.

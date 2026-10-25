@@ -1,0 +1,117 @@
+# OPTIONAL: GKE Pod Snapshots, rootfs-only, for Agent Sandbox (gVisor). Same prerequisites as
+# agent-sandbox-gvisor-snapshots.yaml (cluster feature, Workload Identity Federation, a Cloud
+# Storage bucket, bucket IAM); see
+# https://docs.cloud.google.com/kubernetes-engine/docs/how-to/agent-sandbox-pod-snapshots
+# This file does not apply without the feature's CRDs.
+#
+# What rootfs-only keeps and loses:
+# - Kept: files on the container's root filesystem.
+# - Lost: memory, running processes (the container starts again on resume) and /tmp, which
+#   gVisor mounts as tmpfs. Write state elsewhere, such as /home.
+# - Because no CPU or memory state is restored, the snapshot is not tied to a machine
+#   family, so this ComputeClass can use the same wide ladder as agent-sandbox-gvisor.
+#   Compare agent-sandbox-gvisor-snapshots.yaml: a whole-pod snapshot needs one family.
+#
+# The rules that still apply:
+# - Requests == limits (Guaranteed QoS), as in every Pod Snapshots example here.
+# - Restore is keyed by a pod label (groupByLabelValue) that has to exist when the pod is
+#   created, so use one Sandbox per session, not a warm pool.
+# - Trigger a snapshot BEFORE setting the Sandbox to operatingMode: Suspended. Suspend takes
+#   no snapshot of its own, and the next Running restores the last manual one.
+---
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: agent-sandbox-gvisor-rootfs-snapshots
+spec:
+  nodePoolConfig:
+    sandbox:
+      type: gvisor
+  priorities:
+  - machineType: n4-standard-8
+  - machineType: c4-standard-8
+  - machineType: c3-standard-8
+  - machineType: n4d-standard-8
+  - machineType: c4d-standard-8
+  - machineType: n4-standard-16
+  - machineType: c4-standard-16
+  - machineFamily: n2
+    minCores: 8
+    minMemoryGb: 32
+  activeMigration:
+    optimizeRulePriority: false
+  nodePoolAutoCreation:
+    enabled: true
+  whenUnsatisfiable: DoNotScaleUp
+---
+apiVersion: podsnapshot.gke.io/v1
+kind: PodSnapshotStorageConfig
+metadata:
+  name: agent-snapshots-rootfs
+spec:
+  snapshotStorageConfig:
+    gcs:
+      bucket: my-agent-snapshots  # replace with your bucket name
+      path: sandboxes-rootfs
+---
+# A pod matching the selector restores the newest snapshot in its group. The group is the
+# value of the label named in groupByLabelValue, here one per session.
+apiVersion: podsnapshot.gke.io/v1
+kind: PodSnapshotPolicy
+metadata:
+  name: agent-rootfs-only
+  namespace: default
+spec:
+  storageConfigName: agent-snapshots-rootfs
+  snapshotScope: rootfs-only
+  selector:
+    matchLabels:
+      snapshot: rootfs-only
+  snapshotGroupingRules:
+    groupByLabelValue:
+      labels: [session]
+  triggerConfig:
+    type: manual
+    postCheckpoint: resume
+---
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  name: session-5678
+  namespace: default
+spec:
+  podTemplate:
+    metadata:
+      labels:
+        snapshot: rootfs-only
+        session: "5678"
+    spec:
+      runtimeClassName: gvisor
+      serviceAccountName: agent-sandbox  # the KSA you granted bucket access
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      nodeSelector:
+        sandbox.gke.io/runtime: gvisor
+        cloud.google.com/compute-class: agent-sandbox-gvisor-rootfs-snapshots
+      tolerations:
+      - key: sandbox.gke.io/runtime
+        operator: Equal
+        value: gvisor
+        effect: NoSchedule
+      containers:
+      - name: agent-runtime
+        image: registry.k8s.io/agent-sandbox/python-runtime-sandbox:v0.1.0
+        resources:
+          requests: {cpu: 500m, memory: 1Gi}
+          limits: {cpu: 500m, memory: 1Gi}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: [ALL]
+# Take a snapshot with:
+#   apiVersion: podsnapshot.gke.io/v1
+#   kind: PodSnapshotManualTrigger
+#   metadata: {name: session-5678-snap-1, namespace: default}
+#   spec: {targetPod: session-5678}

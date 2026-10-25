@@ -1,0 +1,91 @@
+# OPTIONAL: GKE Pod Snapshots for Agent Sandbox (gVisor). Prerequisites, all from the guide
+# https://docs.cloud.google.com/kubernetes-engine/docs/how-to/agent-sandbox-pod-snapshots :
+# - the cluster feature (--enable-pod-snapshots) and Workload Identity Federation
+# - a Cloud Storage bucket (hierarchical namespace, soft delete off)
+# - bucket IAM for the sandbox's Kubernetes service account and for GKE's snapshot controller
+# This file does not apply without the feature's CRDs.
+#
+# The rules that make it work with a ComputeClass:
+# - The pod lands on agent-sandbox-gvisor-snapshots, a ONE-family class. A whole-pod snapshot
+#   from another family is skipped without an error: the pod cold-starts, and no event says so.
+# - Requests == limits (Guaranteed QoS). A Burstable pod's whole-pod snapshot fails to restore
+#   on a node with different memory (n4-8 -> n4-16), and the pod is left stuck in
+#   RunContainerError.
+# - Trigger a snapshot BEFORE setting the Sandbox to operatingMode: Suspended. Suspend takes
+#   no snapshot of its own, and the next Running restores the last manual one: a silent rollback.
+# - snapshotScope: rootfs-only restores across families, but only the filesystem (the
+#   process restarts), and gVisor's /tmp is tmpfs, so /tmp is NOT captured.
+---
+apiVersion: podsnapshot.gke.io/v1
+kind: PodSnapshotStorageConfig
+metadata:
+  name: agent-snapshots
+spec:
+  snapshotStorageConfig:
+    gcs:
+      bucket: my-agent-snapshots  # replace with your bucket name
+      path: sandboxes
+---
+# A pod matching the selector restores the newest snapshot in its group. The group is the
+# value of the label named in groupByLabelValue, here one per session.
+apiVersion: podsnapshot.gke.io/v1
+kind: PodSnapshotPolicy
+metadata:
+  name: agent-whole-pod
+  namespace: default
+spec:
+  storageConfigName: agent-snapshots
+  snapshotScope: whole-pod
+  selector:
+    matchLabels:
+      snapshot: whole-pod
+  snapshotGroupingRules:
+    groupByLabelValue:
+      labels: [session]
+  triggerConfig:
+    type: manual
+    postCheckpoint: resume
+---
+# One Sandbox per session, so the session label is set when the pod is created. A
+# warm-pool pod starts before anyone knows which session it will serve (see README).
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  name: session-1234
+  namespace: default
+spec:
+  podTemplate:
+    metadata:
+      labels:
+        snapshot: whole-pod
+        session: "1234"
+    spec:
+      runtimeClassName: gvisor
+      serviceAccountName: agent-sandbox  # the KSA you granted bucket access
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      nodeSelector:
+        sandbox.gke.io/runtime: gvisor
+        cloud.google.com/compute-class: agent-sandbox-gvisor-snapshots
+      tolerations:
+      - key: sandbox.gke.io/runtime
+        operator: Equal
+        value: gvisor
+        effect: NoSchedule
+      containers:
+      - name: agent-runtime
+        image: registry.k8s.io/agent-sandbox/python-runtime-sandbox:v0.1.0
+        resources:
+          requests: {cpu: 500m, memory: 1Gi}
+          limits: {cpu: 500m, memory: 1Gi}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: [ALL]
+# Take a snapshot with:
+#   apiVersion: podsnapshot.gke.io/v1
+#   kind: PodSnapshotManualTrigger
+#   metadata: {name: session-1234-snap-1, namespace: default}
+#   spec: {targetPod: session-1234}

@@ -47,6 +47,12 @@ axis instead:
 
 This example deliberately uses small pods so shape fallback is the right lever.
 
+## Prerequisites
+
+- Regional CPU quota for the C4 family (`CPUS_PER_VM_FAMILY`) of at least 48 vCPU,
+  or the 48-core rule can never win: GKE reports `QuotaExceeded` on that rule and
+  falls to a smaller shape, which looks exactly like a stockout. See [Compute Engine quotas](https://docs.cloud.google.com/compute/resource-usage).
+
 ## Deploy
 
 ```bash

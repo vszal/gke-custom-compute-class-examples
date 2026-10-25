@@ -1,0 +1,122 @@
+# Buffers for Pod Snapshots mode: one active buffer and one standby buffer, both on the
+# snapshot class (n4 only). They reuse the stateless buffers' names, so the control tower
+# drives either mode the same way; on a cluster that also ran stateless mode, the tower
+# sets the other families' standby buffers to 0.
+apiVersion: v1
+kind: PodTemplate
+metadata:
+  name: agent-snapshots-buffer-template
+  namespace: agent-sandbox-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agent-sandbox
+    sandbox-runtime: gvisor
+template:
+  metadata:
+    labels:
+      app.kubernetes.io/part-of: ccc-agent-sandbox
+      app: agent-active-buffer-pod
+  spec:
+    runtimeClassName: gvisor
+    automountServiceAccountToken: false
+    terminationGracePeriodSeconds: 0
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 65535
+    nodeSelector:
+      cloud.google.com/compute-class: agent-sandbox-demo-snapshots
+    tolerations:
+    - key: "sandbox.gke.io/runtime"
+      operator: "Equal"
+      value: "gvisor"
+      effect: "NoSchedule"
+    containers:
+    - name: buffer-container
+      image: registry.k8s.io/pause:3.10
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+      resources:
+        requests:
+          cpu: "6"
+          memory: "24Gi"
+        limits:
+          cpu: "6"
+          memory: "24Gi"
+---
+apiVersion: v1
+kind: PodTemplate
+metadata:
+  name: agent-snapshots-buffer-n4
+  namespace: agent-sandbox-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agent-sandbox
+    sandbox-runtime: gvisor
+template:
+  metadata:
+    labels:
+      app.kubernetes.io/part-of: ccc-agent-sandbox
+      app: agent-standby-buffer-pod
+  spec:
+    runtimeClassName: gvisor
+    automountServiceAccountToken: false
+    terminationGracePeriodSeconds: 0
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 65535
+    nodeSelector:
+      cloud.google.com/compute-class: agent-sandbox-demo-snapshots
+      node.kubernetes.io/instance-type: n4-standard-8
+    tolerations:
+    - key: "sandbox.gke.io/runtime"
+      operator: "Equal"
+      value: "gvisor"
+      effect: "NoSchedule"
+    containers:
+    - name: buffer-container
+      image: registry.k8s.io/pause:3.10
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+      resources:
+        requests:
+          cpu: "6"
+          memory: "24Gi"
+        limits:
+          cpu: "6"
+          memory: "24Gi"
+---
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityBuffer
+metadata:
+  name: agent-active-buffer
+  namespace: agent-sandbox-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agent-sandbox
+    buffer-strategy: active
+spec:
+  podTemplateRef:
+    name: agent-snapshots-buffer-template
+  replicas: 1
+  provisioningStrategy: "buffer.x-k8s.io/active-capacity"
+---
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityBuffer
+metadata:
+  name: agent-standby-buffer-n4
+  namespace: agent-sandbox-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agent-sandbox
+    buffer-strategy: standby
+    machine-family: n4
+  annotations:
+    buffer.gke.io/standby-capacity-init-time: "2m"
+    buffer.gke.io/standby-capacity-refresh-frequency: "24h"
+spec:
+  podTemplateRef:
+    name: agent-snapshots-buffer-n4
+  replicas: 2
+  provisioningStrategy: "buffer.gke.io/standby-capacity"

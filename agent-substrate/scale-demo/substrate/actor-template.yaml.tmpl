@@ -1,0 +1,39 @@
+# ActorTemplate (protojson, not a CRD) for the Substrate counter demo, rendered once per
+# (runtime, family) by install.sh and created with `kubectl ate create actor-template -f -`.
+# workerSelector matches the labels on WorkerPool ${RUNTIME}-${FAMILY}, so this template's
+# actors -- and the FULL snapshots they take -- never leave that machine family.
+metadata:
+  atespace: agent-substrate-demo
+  name: ${RUNTIME}-${FAMILY}
+workerSelector:
+  matchLabels:
+    ate.dev/cpu-family: ${FAMILY}
+    ate.dev/sandbox-runtime: ${RUNTIME}
+containers:
+- name: counter
+  image: ${COUNTER_IMAGE}
+  command:
+  - /ko-app/counter
+  wakeupProbe:
+    httpGet:
+      path: /readyz
+      port: 80
+    timeoutSeconds: 120
+  volumeMounts:
+  - name: data
+    mountPath: /home/counter
+resources:
+  limits:
+  - name: cpu
+    quantity: "1"
+  - name: memory
+    quantity: 512Mi
+snapshotConfig:
+  onCommit: SNAPSHOT_CONTENT_SCOPE_FULL
+  storageLocation: gs://${BUCKET}/agent-substrate-demo/${RUNTIME}-${FAMILY}/
+sandboxConfig:
+  sandboxClass: ${SANDBOX_CLASS}
+  configName: ${SANDBOX_CONFIG}
+volumes:
+- name: data
+  durableDir: {}

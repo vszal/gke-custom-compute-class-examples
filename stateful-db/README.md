@@ -117,9 +117,12 @@ us-central1-a (every priority pinned here)
 ## Prerequisites
 
 - A GKE cluster with ComputeClass support.
-- A Compute Engine reservation named `postgres-primary-reservation` in
-  `us-central1-a` (or edit the name in the class). List with
-  `gcloud compute reservations list`.
+- A Compute Engine reservation in `us-central1-a`, with its name replacing
+  `<YOUR-RESERVATION-NAME>` in `postgres-class.yaml`. List with
+  `gcloud compute reservations list`. The class applies with the placeholder still in
+  it; the pod then stays `Pending` and the class status shows `ReservationNotFound`.
+- Regional CPU quota for N4D and C4 (`CPUS_PER_VM_FAMILY`), so the On-Demand
+  fallbacks can actually provision.
 - A `hyperdisk-balanced` StorageClass. Recent GKE versions ship one by default
   (`kubectl get storageclass`). If yours doesn't have it, create it with the
   **PD CSI driver** (not the in-tree provisioner):

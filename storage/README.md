@@ -29,19 +29,24 @@ priorities:
 
 - `bootDiskType` / `bootDiskSize` set the node's OS/boot disk (here a 250 GiB
   `pd-balanced` disk).
-- `localSSDCount` attaches that many **raw local SSD** devices (375 GiB each) to the
+- `localSSDCount` attaches that many **local SSD** devices (375 GiB each) to the
   node.
 
 [`lssd-deploy.yaml`](./lssd-deploy.yaml) mounts an `emptyDir` at `/cache` as scratch
 space.
 
-> **Local SSD vs ephemeral storage — read this.** `localSSDCount` attaches local SSDs
-> as **raw block devices**. By default a Kubernetes `emptyDir` is backed by the node
-> **boot disk**, *not* these raw SSDs. To make `emptyDir` / ephemeral storage actually
-> land on local SSD, the node pool must be configured for *ephemeral-storage-local-ssd*
-> (such nodes carry the label `cloud.google.com/gke-ephemeral-storage-local-ssd=true`).
-> Treat this example as "attach raw local SSD scratch capacity"; configure
-> ephemeral-storage-local-ssd separately if you need `emptyDir` to sit on SSD.
+> **Check where `emptyDir` actually lives.** On a self-managed node pool, local SSD
+> backs ephemeral storage only when the pool is created for it
+> (`--ephemeral-storage-local-ssd`). On GKE 1.37, nodes auto-created from this class
+> come up that way on their own: they carry the label
+> `cloud.google.com/gke-ephemeral-storage-local-ssd=true` and their allocatable ephemeral
+> storage is the local SSD's size, so `emptyDir` lands on SSD. The [ComputeClass reference](https://docs.cloud.google.com/kubernetes-engine/docs/reference/crds/computeclass)
+> doesn't state this for `localSSDCount`, so verify on your version before relying on it:
+>
+> ```bash
+> kubectl get nodes -l cloud.google.com/compute-class=c3-lssd \
+>   -o custom-columns='NAME:.metadata.name,LSSD:.metadata.labels.cloud\.google\.com/gke-ephemeral-storage-local-ssd,EPHEMERAL:.status.allocatable.ephemeral-storage'
+> ```
 
 ## Deploy
 

@@ -1,0 +1,39 @@
+# ActorTemplate for one lineage. This is protojson for `kubectl ate`, not a Kubernetes object.
+# Render one per lineage and create it:
+#   sed -e 's|${NAME}|microvm-c4|; s|${LINEAGE}|microvm-c4|' \
+#       -e 's|${SANDBOX_CLASS}|SANDBOX_CLASS_MICROVM|; s|${SANDBOX_CONFIG}|microvm|' \
+#       -e "s|\${BUCKET}|${BUCKET}|" actor-template.yaml.tmpl \
+#     | kubectl ate create actor-template -f -
+# gVisor uses SANDBOX_CLASS_GVISOR and configName gvisor-default.
+#
+# The golden snapshot is built once, at creation, on ONE worker matching workerSelector.
+# That worker's host sets the CPU baseline for every actor in the lineage. So before you
+# create the template, make sure only the intended pool carries the lineage label.
+metadata:
+  atespace: agents
+  name: ${NAME}
+workerSelector:
+  matchLabels:
+    ate.dev/lineage: ${LINEAGE}
+containers:
+- name: counter
+  image: us-docker.pkg.dev/gke-substrate-release/substrate/counter:v0.4.0-gke.0@sha256:3867923552b84043c46237a6a43ed92d6f85f23174c0b1877f6bbca89e2535a2
+  command: [/ko-app/counter]
+  wakeupProbe:
+    httpGet: {path: /readyz, port: 80}
+    timeoutSeconds: 120
+  volumeMounts:
+  - {name: data, mountPath: /home/counter}
+resources:
+  limits:
+  - {name: cpu, quantity: "1"}
+  - {name: memory, quantity: 512Mi}
+snapshotConfig:
+  onCommit: SNAPSHOT_CONTENT_SCOPE_FULL
+  storageLocation: gs://${BUCKET}/agents/${NAME}/
+sandboxConfig:
+  sandboxClass: ${SANDBOX_CLASS}
+  configName: ${SANDBOX_CONFIG}
+volumes:
+- name: data
+  durableDir: {}

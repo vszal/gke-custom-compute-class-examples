@@ -1,0 +1,72 @@
+# Seed Deployments for the microVM lineage classes.
+#
+# microVM workers request ate.dev/kvm, a device that atelet advertises only once it runs on
+# a nested-virt node. Cluster autoscaler can't know that a node pool with no nodes will
+# offer it, so pending workers can't start a node pool. A plain placeholder pod on the class
+# can: NAP creates the node, atelet starts, ate.dev/kvm appears, and workers schedule. Once
+# a node pool has a node, the workers grow it themselves.
+#
+# Each size rule is its own node pool. When c4-standard-8 is stocked out, a pending worker
+# can't open the c4-standard-16 pool either, for the same reason. A seed with several
+# replicas can, because seeds fall back like any pod. One seed replica = one node
+# (hostname anti-affinity), so use 1 for the first node, or more to hold capacity through a
+# stockout.
+# A CapacityBuffer pointing at the same pod template works too
+# (see scale-demo/substrate/03-buffers.yaml).
+#
+# The file doubles as the baseline Deployment for checking class provisioning without
+# Substrate installed.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: substrate-seed-microvm-c4
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: substrate-seed, lineage: microvm-c4}
+  template:
+    metadata:
+      labels: {app: substrate-seed, lineage: microvm-c4}
+    spec:
+      nodeSelector:
+        cloud.google.com/compute-class: substrate-microvm-c4
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchLabels: {app: substrate-seed, lineage: microvm-c4}
+      containers:
+      - name: pause
+        image: registry.k8s.io/pause:3.10
+        resources:
+          requests: {cpu: 100m, memory: 64Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: substrate-seed-microvm-n4
+  namespace: default
+spec:
+  replicas: 0
+  selector:
+    matchLabels: {app: substrate-seed, lineage: microvm-n4}
+  template:
+    metadata:
+      labels: {app: substrate-seed, lineage: microvm-n4}
+    spec:
+      nodeSelector:
+        cloud.google.com/compute-class: substrate-microvm-n4
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchLabels: {app: substrate-seed, lineage: microvm-n4}
+      containers:
+      - name: pause
+        image: registry.k8s.io/pause:3.10
+        resources:
+          requests: {cpu: 100m, memory: 64Mi}

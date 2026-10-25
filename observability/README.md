@@ -379,7 +379,7 @@ This example includes three zero-dependency (`bash` + `jq`) diagnostic shell scr
 Performs live end-to-end scale-up traceability across:
 - Pod phase, bound node, and `nodeSelector`.
 - Cluster Autoscaler visibility decisions (`decision.scaleUp.triggeringPods` and `increasedMigs`).
-- Skipped higher priority rules and winning priority rule identification.
+- Rules that were skipped or constrained, and the winning rule.
 - Node labels and `ccc_priority_index` annotation verification.
 
 ```bash

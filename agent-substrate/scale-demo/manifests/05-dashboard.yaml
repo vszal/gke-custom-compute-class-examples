@@ -1,0 +1,126 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ccc-agents-dashboard
+  namespace: agent-substrate-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ccc-agents-dashboard-role
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+rules:
+- apiGroups: [""]
+  resources: ["nodes", "pods", "namespaces", "events"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "deployments/scale"]
+  verbs: ["get", "list", "watch", "update", "patch"]
+- apiGroups: ["cloud.google.com"]
+  resources: ["computeclasses"]
+  verbs: ["get", "list", "watch", "update", "patch"]
+- apiGroups: ["autoscaling.x-k8s.io"]
+  resources: ["capacityquotas", "capacitybuffers"]
+  verbs: ["get", "list", "watch", "update", "patch"]
+- apiGroups: ["ate.dev"]
+  resources: ["workerpools", "workerpools/scale", "actortemplates"]
+  verbs: ["get", "list", "watch", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ccc-agents-dashboard-binding
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+subjects:
+- kind: ServiceAccount
+  name: ccc-agents-dashboard
+  namespace: agent-substrate-demo
+roleRef:
+  kind: ClusterRole
+  name: ccc-agents-dashboard-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ccc-agents-dashboard
+  namespace: agent-substrate-demo
+  labels:
+    app: ccc-agents-dashboard
+    app.kubernetes.io/part-of: ccc-agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ccc-agents-dashboard
+  template:
+    metadata:
+      labels:
+        app: ccc-agents-dashboard
+        app.kubernetes.io/part-of: ccc-agents
+    spec:
+      serviceAccountName: ccc-agents-dashboard
+      terminationGracePeriodSeconds: 5
+      containers:
+      - name: dashboard
+        image: python:3.11-slim
+        command:
+        - /bin/bash
+        - -c
+        - |
+          pip install --no-cache-dir -r /app-src/requirements.txt
+          mkdir -p /app/static
+          cp /app-src/server.py /app/server.py
+          cp /app-src/index.html /app/static/index.html
+          cp /app-src/app.js /app/static/app.js
+          cp /app-src/guide.js /app/static/guide.js
+          cp /app-src/styles.css /app/static/styles.css
+          cd /app && python3 server.py --host 0.0.0.0 --port 8881
+        ports:
+        - containerPort: 8881
+          name: http
+        readinessProbe:
+          # The container installs its dependencies before serving, so the pod is not
+          # Ready (and `rollout status` / port-forward would be early) until the API answers.
+          httpGet:
+            path: /api/state
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 10
+          failureThreshold: 60
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        volumeMounts:
+        - name: app-volume
+          mountPath: /app-src
+      volumes:
+      - name: app-volume
+        configMap:
+          name: ccc-agents-dashboard-app
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ccc-agents-dashboard
+  namespace: agent-substrate-demo
+  labels:
+    app: ccc-agents-dashboard
+    app.kubernetes.io/part-of: ccc-agents
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8881
+    targetPort: 8881
+    name: http
+  selector:
+    app: ccc-agents-dashboard

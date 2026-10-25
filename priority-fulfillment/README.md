@@ -64,7 +64,7 @@ kubectl -n ccc-observability rollout status deploy/ccc-priority-exporter
 ./install-dashboards.sh                  # active gcloud project
 ./install-dashboards.sh my-project       # explicit project
 ./install-dashboards.sh --update         # replace dashboards already installed
-./install-dashboards.sh --validate-only  # parse and validate, create nothing
+./install-dashboards.sh --validate-only  # parse and validate, create nothing (gcloud still prints "Created [...]")
 ./install-dashboards.sh --all            # include accelerator variants with no data yet
 ```
 

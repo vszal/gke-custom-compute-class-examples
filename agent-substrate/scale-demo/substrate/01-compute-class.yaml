@@ -1,0 +1,74 @@
+# Substrate mode: one ComputeClass per sandbox runtime, owning the whole machine ladder.
+# Substrate ships its own runsc / Cloud Hypervisor inside the worker image, so unlike
+# pause mode there is no nodePoolConfig.sandbox (GKE Sandbox) here.
+# microVM is Intel only. c4d/c3d accept enableNestedVirtualization, but the guest exposes
+# no svm flag, so there is no /dev/kvm. n4d is left out of the microVM ladder. gVisor needs
+# no KVM and uses all six.
+# Every rule is pinned to <family>-standard-8 so each WorkerPool can target exactly one
+# rule with node.kubernetes.io/instance-type (GKE rejects machine-family selectors on
+# pods that use a custom ComputeClass).
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: agent-substrate-microvm
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+spec:
+  nodePoolConfig:
+    nodeLabels:
+      # atelet's DaemonSet selects on this label; stamping it here is what lets
+      # a node NAP creates join Substrate without anyone labeling it by hand.
+      ate.dev/substrate-version: __SUBSTRATE_VERSION__
+      ate.dev/sandbox-runtime: microvm
+      demo: ccc-agents
+  priorityDefaults:
+    enableNestedVirtualization: true
+  priorities:
+  - machineType: c4-standard-8
+    maxPodsPerNode: 32
+  - machineType: n4-standard-8
+    maxPodsPerNode: 32
+  - machineType: c3-standard-8
+    maxPodsPerNode: 32
+  activeMigration:
+    optimizeRulePriority: false
+  autoscalingPolicy:
+    consolidationDelayMinutes: 1
+  nodePoolAutoCreation:
+    enabled: true
+  whenUnsatisfiable: DoNotScaleUp
+---
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: agent-substrate-gvisor
+  labels:
+    app.kubernetes.io/part-of: ccc-agents
+spec:
+  nodePoolConfig:
+    nodeLabels:
+      # atelet's DaemonSet selects on this label; stamping it here is what lets
+      # a node NAP creates join Substrate without anyone labeling it by hand.
+      ate.dev/substrate-version: __SUBSTRATE_VERSION__
+      ate.dev/sandbox-runtime: gvisor
+      demo: ccc-agents
+  priorities:
+  - machineType: c4-standard-8
+    maxPodsPerNode: 32
+  - machineType: c4d-standard-8
+    maxPodsPerNode: 32
+  - machineType: n4-standard-8
+    maxPodsPerNode: 32
+  - machineType: n4d-standard-8
+    maxPodsPerNode: 32
+  - machineType: c3-standard-8
+    maxPodsPerNode: 32
+  - machineType: c3d-standard-8
+    maxPodsPerNode: 32
+  activeMigration:
+    optimizeRulePriority: false
+  autoscalingPolicy:
+    consolidationDelayMinutes: 1
+  nodePoolAutoCreation:
+    enabled: true
+  whenUnsatisfiable: DoNotScaleUp

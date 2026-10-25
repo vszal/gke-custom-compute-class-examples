@@ -1,0 +1,128 @@
+# GKE Agent Sandbox: SandboxTemplate + SandboxWarmPool + SandboxClaim, for gVisor and microVM.
+#
+# Agent Sandbox's admission policies (sandbox-core-policy, sandbox-hardening-policy, both
+# Deny) check every Sandbox and SandboxTemplate:
+# 1. runtimeClassName is gvisor or microvm
+# 2. nodeSelector sandbox.gke.io/runtime matches it, with a matching toleration
+# 3. automountServiceAccountToken: false
+# 4. no hostNetwork / hostPID / hostIPC / hostPath / hostPort / privileged / sysctls / procMount
+# 5. runAsNonRoot, drop ALL capabilities, no added capabilities
+# 6. cpu and memory limits, and memory request >= 1Gi per vCPU of request
+#
+# Requests equal limits (Guaranteed QoS). Without Pod Snapshots it makes no difference. With
+# them, a Burstable pod's whole-pod snapshot fails to restore on a different-sized node and
+# wedges the pod (see README).
+---
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxTemplate
+metadata:
+  name: python-agent-gvisor-template
+  namespace: default
+spec:
+  podTemplate:
+    metadata:
+      labels:
+        sandbox-type: python-agent
+    spec:
+      runtimeClassName: gvisor
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+      nodeSelector:
+        sandbox.gke.io/runtime: gvisor
+        cloud.google.com/compute-class: agent-sandbox-gvisor
+      tolerations:
+      - key: sandbox.gke.io/runtime
+        operator: Equal
+        value: gvisor
+        effect: NoSchedule
+      restartPolicy: OnFailure
+      containers:
+      - name: agent-runtime
+        image: registry.k8s.io/agent-sandbox/python-runtime-sandbox:v0.1.0
+        ports:
+        - containerPort: 8888
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+---
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxWarmPool
+metadata:
+  name: python-agent-warmpool
+  namespace: default
+spec:
+  replicas: 2
+  sandboxTemplateRef:
+    name: python-agent-gvisor-template
+---
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxClaim
+metadata:
+  name: agent-session-001
+  namespace: default
+spec:
+  warmPoolRef:
+    name: python-agent-warmpool
+---
+# microVM variant: same policy, with runtimeClassName, selector and toleration set to microvm.
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxTemplate
+metadata:
+  name: python-agent-microvm-template
+  namespace: default
+spec:
+  podTemplate:
+    metadata:
+      labels:
+        sandbox-type: python-agent-microvm
+    spec:
+      runtimeClassName: microvm
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+      nodeSelector:
+        sandbox.gke.io/runtime: microvm
+        cloud.google.com/compute-class: agent-sandbox-microvm
+      tolerations:
+      - key: sandbox.gke.io/runtime
+        operator: Equal
+        value: microvm
+        effect: NoSchedule
+      restartPolicy: OnFailure
+      containers:
+      - name: agent-runtime
+        image: registry.k8s.io/agent-sandbox/python-runtime-sandbox:v0.1.0
+        ports:
+        - containerPort: 8888
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+---
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxWarmPool
+metadata:
+  name: python-agent-microvm-warmpool
+  namespace: default
+spec:
+  replicas: 1
+  sandboxTemplateRef:
+    name: python-agent-microvm-template

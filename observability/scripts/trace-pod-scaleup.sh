@@ -311,7 +311,7 @@ EOF
 
 SKIPPED_COUNT=$(echo "$SKIPPED_PRIORITIES" | jq 'length')
 if [[ "$SKIPPED_COUNT" -gt 0 ]]; then
-  echo "    Higher Priorities Skipped ($SKIPPED_COUNT):"
+  echo "    Priorities Skipped or Constrained ($SKIPPED_COUNT):"
   for i in $(seq 0 $((SKIPPED_COUNT - 1))); do
     ITEM=$(echo "$SKIPPED_PRIORITIES" | jq -c ".[$i]")
     IDENT=$(echo "$ITEM" | jq -r '.identifier')

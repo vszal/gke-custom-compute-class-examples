@@ -1,0 +1,103 @@
+# ComputeClasses for Agent Substrate worker nodes: one class per snapshot lineage.
+#
+# A Substrate snapshot restores only on hosts whose CPU is compatible with the host that
+# took it, and Substrate's scheduler does not check. GKE's Agent Substrate docs also require
+# each ActorTemplate to select a single VM type. So each class below owns ONE machine family
+# and falls back only by size, which is safe. The last class, substrate-gvisor-mixed, is the
+# one exception: an advanced pattern that GKE doesn't support (see README).
+#
+# How this differs from a GKE Sandbox class:
+# - No nodePoolConfig.sandbox. Substrate ships its own runsc / Cloud Hypervisor inside the
+#   worker image. It does not use GKE's gvisor/microvm RuntimeClasses.
+# - ate.dev/substrate-version must be on every node. atelet's DaemonSet selects on it, and a
+#   node without atelet never joins Substrate. Match the value to your install:
+#     kubectl -n ate-system get ds -o jsonpath='{..nodeSelector.ate\.dev/substrate-version}'
+# - microVM needs nested virtualization (Intel only, see README), set in priorityDefaults.
+#   nodePoolConfig.enableNestedVirtualization is rejected.
+# - activeMigration stays off: it would move workers between rules in the middle of a session.
+---
+# microVM lineage 1: C4 only. Size fallback 8 -> 16 -> 4 within the family.
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: substrate-microvm-c4
+spec:
+  nodePoolConfig:
+    nodeLabels:
+      ate.dev/substrate-version: v0.4.0-gke.0
+  priorityDefaults:
+    enableNestedVirtualization: true
+  priorities:
+  - machineType: c4-standard-8
+  - machineType: c4-standard-16
+  - machineType: c4-standard-4
+  activeMigration:
+    optimizeRulePriority: false
+  nodePoolAutoCreation:
+    enabled: true
+  whenUnsatisfiable: DoNotScaleUp
+---
+# microVM lineage 2: N4 only. This is a separate lineage, not a fallback for lineage 1:
+# actors born here stay here. Use it for NEW actors while C4 is unavailable.
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: substrate-microvm-n4
+spec:
+  nodePoolConfig:
+    nodeLabels:
+      ate.dev/substrate-version: v0.4.0-gke.0
+  priorityDefaults:
+    enableNestedVirtualization: true
+  priorities:
+  - machineType: n4-standard-8
+  - machineType: n4-standard-16
+  - machineType: n4-standard-4
+  activeMigration:
+    optimizeRulePriority: false
+  nodePoolAutoCreation:
+    enabled: true
+  whenUnsatisfiable: DoNotScaleUp
+---
+# gVisor lineage: C3 only. Its golden snapshot must come from a host without
+# tsc_deadline_timer, which varies by zone (the gvisor-golden WorkerPool pins the zone).
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: substrate-gvisor-c3
+spec:
+  nodePoolConfig:
+    nodeLabels:
+      ate.dev/substrate-version: v0.4.0-gke.0
+  priorities:
+  - machineType: c3-standard-8
+  - machineType: c3-standard-4
+  activeMigration:
+    optimizeRulePriority: false
+  nodePoolAutoCreation:
+    enabled: true
+  whenUnsatisfiable: DoNotScaleUp
+---
+# ADVANCED, NOT SUPPORTED by GKE's Agent Substrate docs, which require one VM type per
+# ActorTemplate. A mixed Intel ladder for the gVisor lineage above. It restores only because
+# that lineage's golden was built on C3, whose CPU features are a subset of N4's and C4's.
+# Never point a lineage with a non-C3 golden at it, and don't add AMD or older Intel families.
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: substrate-gvisor-mixed
+spec:
+  nodePoolConfig:
+    nodeLabels:
+      ate.dev/substrate-version: v0.4.0-gke.0
+  priorities:
+  - machineType: n4-standard-8
+  - machineType: c3-standard-8
+  - machineType: c4-standard-8
+  - machineType: n4-standard-16
+  - machineType: c4-standard-16
+  activeMigration:
+    optimizeRulePriority: false
+  nodePoolAutoCreation:
+    enabled: true
+  whenUnsatisfiable: DoNotScaleUp

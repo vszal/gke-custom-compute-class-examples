@@ -1,0 +1,118 @@
+# Stateless mode: one SandboxTemplate and SandboxWarmPool per runtime. Each agent is a
+# SandboxClaim that the control tower creates against the active runtime's warm pool; the
+# pool refills behind it. The tower sets the warm pool's replicas from the UI.
+#
+# The pod passes Agent Sandbox's admission policies: runtime selector and toleration,
+# no service-account token, non-root, all capabilities dropped, limits set, and memory
+# request >= 1Gi per vCPU of request. A pause container stands in for the agent runtime.
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxTemplate
+metadata:
+  name: agent-microvm-template
+  namespace: agent-sandbox-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agent-sandbox
+spec:
+  podTemplate:
+    metadata:
+      labels:
+        app: agent-microvm-sandbox
+        app.kubernetes.io/part-of: ccc-agent-sandbox
+    spec:
+      runtimeClassName: microvm
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 0
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65535
+      nodeSelector:
+        sandbox.gke.io/runtime: microvm
+        cloud.google.com/compute-class: agent-sandbox-demo-microvm
+      tolerations:
+      - key: sandbox.gke.io/runtime
+        operator: Equal
+        value: microvm
+        effect: NoSchedule
+      containers:
+      - name: agent-runtime
+        image: registry.k8s.io/pause:3.10
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 250m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+---
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxWarmPool
+metadata:
+  name: agent-microvm-warmpool
+  namespace: agent-sandbox-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agent-sandbox
+spec:
+  replicas: 0
+  sandboxTemplateRef:
+    name: agent-microvm-template
+---
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxTemplate
+metadata:
+  name: agent-gvisor-template
+  namespace: agent-sandbox-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agent-sandbox
+spec:
+  podTemplate:
+    metadata:
+      labels:
+        app: agent-gvisor-sandbox
+        app.kubernetes.io/part-of: ccc-agent-sandbox
+    spec:
+      runtimeClassName: gvisor
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 0
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65535
+      nodeSelector:
+        sandbox.gke.io/runtime: gvisor
+        cloud.google.com/compute-class: agent-sandbox-demo-gvisor
+      tolerations:
+      - key: sandbox.gke.io/runtime
+        operator: Equal
+        value: gvisor
+        effect: NoSchedule
+      containers:
+      - name: agent-runtime
+        image: registry.k8s.io/pause:3.10
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 250m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+---
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxWarmPool
+metadata:
+  name: agent-gvisor-warmpool
+  namespace: agent-sandbox-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agent-sandbox
+spec:
+  replicas: 0
+  sandboxTemplateRef:
+    name: agent-gvisor-template

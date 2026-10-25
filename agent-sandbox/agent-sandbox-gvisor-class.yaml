@@ -1,0 +1,61 @@
+# ComputeClasses for GKE Agent Sandbox with gVisor.
+#
+# nodePoolConfig.sandbox.type: gvisor makes NAP create GKE Sandbox nodes, which carry the
+# label and taint sandbox.gke.io/runtime=gvisor. Agent Sandbox's admission policy requires
+# pods to select and tolerate exactly that.
+#
+# Which class depends on whether sessions need to survive a pod restart:
+# - agent-sandbox-gvisor: stateless sessions (no Pod Snapshots). Nothing is restored, so
+#   any family or size can serve any session, and a wide ladder is safe.
+# - agent-sandbox-gvisor-snapshots: sessions restored from GKE Pod Snapshots. A whole-pod
+#   snapshot restores only on the same machine family (see README), so this ladder varies
+#   size only. Pair it with Guaranteed-QoS pods.
+#
+# activeMigration is off in both. Cluster autoscaler doesn't move a claimed sandbox
+# ("pod not backed by controller"), so migration buys nothing, and moving one would reset
+# the session anyway.
+#
+# IMPORTANT: Align machineType / machineFamily priority order with your existing CUDs/Reservations.
+---
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: agent-sandbox-gvisor
+spec:
+  nodePoolConfig:
+    sandbox:
+      type: gvisor
+  priorities:
+  - machineType: n4-standard-8
+  - machineType: c4-standard-8
+  - machineType: c3-standard-8
+  - machineType: n4d-standard-8
+  - machineType: c4d-standard-8
+  - machineType: n4-standard-16
+  - machineType: c4-standard-16
+  - machineFamily: n2
+    minCores: 8
+    minMemoryGb: 32
+  activeMigration:
+    optimizeRulePriority: false
+  nodePoolAutoCreation:
+    enabled: true
+  whenUnsatisfiable: DoNotScaleUp
+---
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: agent-sandbox-gvisor-snapshots
+spec:
+  nodePoolConfig:
+    sandbox:
+      type: gvisor
+  priorities:
+  - machineType: n4-standard-8
+  - machineType: n4-standard-16
+  - machineType: n4-standard-4
+  activeMigration:
+    optimizeRulePriority: false
+  nodePoolAutoCreation:
+    enabled: true
+  whenUnsatisfiable: DoNotScaleUp

@@ -1,0 +1,124 @@
+# Pod Snapshots, rootfs-only, for the session Sandboxes. Prerequisites (bucket, IAM, the
+# cluster feature): https://docs.cloud.google.com/kubernetes-engine/docs/how-to/agent-sandbox-pod-snapshots
+# install.sh --mode=snapshots-rootfs replaces __BUCKET__.
+#
+# Constraints this mode is built around:
+# - snapshotScope: rootfs-only keeps only files on the container's root filesystem. Memory,
+#   running processes and /tmp (tmpfs under gVisor) are not captured: the process starts
+#   again on resume.
+# - It restores across machine families, so sessions run on the wide agent-sandbox-demo-gvisor
+#   class from manifests/01 (c3 / n4 / c4 / c2 / n2). Buffers and quotas from manifests/02-03
+#   already target that class, so this mode installs no class of its own.
+# - Restore is keyed by the `session` label, which has to be on the pod at creation, so
+#   sessions are created one Sandbox each by the control tower, not from a warm pool.
+#
+# The session program keeps one counter in a file under /var/tmp (root filesystem) and one
+# in memory, and logs both as a JSON line. The control tower reads that line before the
+# snapshot and after the resume, so "files kept / memory kept" comes from the pods, not
+# from an assumption. It needs `pods/log` get (manifests/05-dashboard.yaml).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agent-session
+  namespace: agent-sandbox-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agent-sandbox
+---
+apiVersion: podsnapshot.gke.io/v1
+kind: PodSnapshotStorageConfig
+metadata:
+  name: sbx-demo-snapshots
+  labels:
+    app.kubernetes.io/part-of: ccc-agent-sandbox
+spec:
+  snapshotStorageConfig:
+    gcs:
+      bucket: __BUCKET__
+      path: sandboxes
+---
+apiVersion: podsnapshot.gke.io/v1
+kind: PodSnapshotPolicy
+metadata:
+  name: agent-session-rootfs
+  namespace: agent-sandbox-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agent-sandbox
+spec:
+  storageConfigName: sbx-demo-snapshots
+  snapshotScope: rootfs-only
+  selector:
+    matchLabels:
+      app: agent-session
+  snapshotGroupingRules:
+    groupByLabelValue:
+      labels: [session]
+  triggerConfig:
+    type: manual
+    postCheckpoint: resume
+---
+# The tower copies spec.podTemplate into each session Sandbox and adds the `session`
+# label. Requests equal limits (Guaranteed QoS), as in every snapshot example here.
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxTemplate
+metadata:
+  name: agent-session-template
+  namespace: agent-sandbox-demo
+  labels:
+    app.kubernetes.io/part-of: ccc-agent-sandbox
+spec:
+  podTemplate:
+    metadata:
+      labels:
+        app: agent-session
+        app.kubernetes.io/part-of: ccc-agent-sandbox
+    spec:
+      runtimeClassName: gvisor
+      serviceAccountName: agent-session
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      nodeSelector:
+        sandbox.gke.io/runtime: gvisor
+        cloud.google.com/compute-class: agent-sandbox-demo-gvisor
+      tolerations:
+      - key: sandbox.gke.io/runtime
+        operator: Equal
+        value: gvisor
+        effect: NoSchedule
+      containers:
+      - name: agent-runtime
+        image: registry.k8s.io/agent-sandbox/python-runtime-sandbox:v0.1.0
+        command: ["python3", "-u", "-c"]
+        args:
+        - |
+          import json, os, time
+          D = "/var/tmp/agent-state"  # root filesystem, not /tmp
+          F = D + "/state.json"
+          os.makedirs(D, exist_ok=True)
+          now = time.time()
+          try:
+              st = json.load(open(F))
+              st["boots"] += 1
+          except Exception:
+              st = {"boots": 1, "firstBootAt": now, "fileWrites": 0}
+          start, ticks = now, 0  # process state: memory only
+          while True:
+              st["fileWrites"] += 1
+              ticks += 1
+              json.dump(st, open(F + ".tmp", "w"))
+              os.replace(F + ".tmp", F)
+              print(json.dumps({**st, "processStart": start, "memTicks": ticks}), flush=True)
+              time.sleep(5)
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL

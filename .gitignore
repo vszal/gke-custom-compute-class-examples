@@ -9,3 +9,6 @@ __pycache__/
 *.pyc
 
 
+
+# Raw test notes (not published)
+*.local.md

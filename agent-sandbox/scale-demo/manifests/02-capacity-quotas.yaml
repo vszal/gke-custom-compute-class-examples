@@ -1,0 +1,100 @@
+# Per-family vCPU ceilings and a class-wide cap. When a family reaches its cap the
+# autoscaler skips that rule up front and provisions the next one.
+# CapacityQuotas are cluster-scoped, so the names carry a sbx-demo- prefix.
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityQuota
+metadata:
+  name: sbx-demo-class-cap
+  labels:
+    app.kubernetes.io/part-of: ccc-agent-sandbox
+spec:
+  selector:
+    matchExpressions:
+    - key: cloud.google.com/compute-class
+      operator: In
+      values:
+      - agent-sandbox-demo-microvm
+      - agent-sandbox-demo-gvisor
+  limits:
+    resources:
+      cpu: 720
+---
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityQuota
+metadata:
+  name: sbx-demo-c3-cap
+  labels:
+    app.kubernetes.io/part-of: ccc-agent-sandbox
+spec:
+  selector:
+    matchLabels:
+      cloud.google.com/machine-family: c3
+    matchExpressions:
+    - key: cloud.google.com/compute-class
+      operator: In
+      values:
+      - agent-sandbox-demo-microvm
+      - agent-sandbox-demo-gvisor
+  limits:
+    resources:
+      cpu: 24
+---
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityQuota
+metadata:
+  name: sbx-demo-n4-cap
+  labels:
+    app.kubernetes.io/part-of: ccc-agent-sandbox
+spec:
+  selector:
+    matchLabels:
+      cloud.google.com/machine-family: n4
+    matchExpressions:
+    - key: cloud.google.com/compute-class
+      operator: In
+      values:
+      - agent-sandbox-demo-microvm
+      - agent-sandbox-demo-gvisor
+  limits:
+    resources:
+      cpu: 96
+---
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityQuota
+metadata:
+  name: sbx-demo-c4-cap
+  labels:
+    app.kubernetes.io/part-of: ccc-agent-sandbox
+spec:
+  selector:
+    matchLabels:
+      cloud.google.com/machine-family: c4
+    matchExpressions:
+    - key: cloud.google.com/compute-class
+      operator: In
+      values:
+      - agent-sandbox-demo-microvm
+      - agent-sandbox-demo-gvisor
+  limits:
+    resources:
+      cpu: 96
+---
+apiVersion: autoscaling.x-k8s.io/v1beta1
+kind: CapacityQuota
+metadata:
+  name: sbx-demo-c2-cap
+  labels:
+    app.kubernetes.io/part-of: ccc-agent-sandbox
+spec:
+  selector:
+    matchLabels:
+      cloud.google.com/machine-family: c2
+    matchExpressions:
+    - key: cloud.google.com/compute-class
+      operator: In
+      values:
+      - agent-sandbox-demo-microvm
+      - agent-sandbox-demo-gvisor
+  limits:
+    resources:
+      cpu: 96

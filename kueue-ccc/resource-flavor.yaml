@@ -4,4 +4,4 @@ metadata:
   name: "ccc"
 spec:
   nodeLabels:
-    cloud.google.com/compute-class: "cost-optimized"
+    cloud.google.com/compute-class: "kueue-cost-optimized"

@@ -57,6 +57,16 @@ Each folder has its own README with the full walkthrough.
 | [capacity-quota](./capacity-quota) | Limit ComputeClass scale-ups via a CapacityQuota custom resource |
 | [observability](./observability) | Traceability from pending pods to scaled nodes (`ccc_priority_index`), status conditions (`ProvisioningSuspended` vs `ProvisioningConstrained`), and hard stockout monitoring (1.36.4+) |
 | [priority-fulfillment](./priority-fulfillment) | Historical, capacity-normalized dashboards of how often priority rule 0 was fulfilled vs. fallbacks, via a `ccc_priority_index` exporter and Managed Prometheus (1.33+). Five portable Cloud Monitoring dashboards — one class, fleet by vCPU / GPU chip / TPU chip, and scale-up health — installed into any project with `./install-dashboards.sh` |
-| [agent-sandbox-gvisor](./agent-sandbox-gvisor) | GKE Agent Sandbox: gVisor container sandboxing + warm pool claiming + hybrid On-Demand ladder |
-| [agent-substrate-microvm](./agent-substrate-microvm) | Agent Substrate: hardware-isolated microVMs + nested virtualization for sub-500ms suspend/resume, plus the interactive [GKE Agent Substrate - scale performance control tower](./agent-substrate-microvm/scale-demo) |
+| [agent-sandbox](./agent-sandbox) | GKE Agent Sandbox (gVisor and microVM): warm pools on a wide fallback ladder, plus the constraints. Claimed sandboxes pin nodes, eviction resets sessions silently, and whole-pod Pod Snapshots narrow the class to one family with Guaranteed QoS, while rootfs-only snapshots keep the wide ladder but preserve only files |
+| [agent-substrate](./agent-substrate) | Agent Substrate (microVM and gVisor): one ComputeClass per snapshot lineage. Size fallback is safe, cross-family fallback crashes restores, and microVM classes need a seed. Plus the interactive [scale control tower](./agent-substrate/scale-demo) |
 
+### Agent sandbox: what survives a restart
+
+Pick the persistence option first; it decides how wide the ComputeClass can be. Details in
+the [agent-sandbox README](./agent-sandbox#pick-the-persistence-option).
+
+| Option | What is preserved | What is lost | Machine-family fallback | Typical resume cost | When to use |
+|---|---|---|---|---|---|
+| **Stateless** (no snapshots) | Nothing. A claimed sandbox keeps its node until the session ends | Everything on any pod restart; eviction is a silent reset | Any family and size: wide ladder | No resume. A new sandbox starts cold, or a claim adopts a warm-pool sandbox | Disposable sessions, or state held outside the pod |
+| **Pod Snapshots, rootfs-only** (`snapshotScope: rootfs-only`) | Files on the container root filesystem | Memory, running processes (the container starts again) and `/tmp` (tmpfs under gVisor) | Crosses families: wide ladder | Restore plus a process restart. Not quoted here: measure it with Resume → Ready in the demo | State lives in files (workspaces, checkouts, notebooks) and the process can be restarted |
+| **Pod Snapshots, whole-pod** (`snapshotScope: whole-pod`) | Memory, processes, `/tmp` and the root filesystem | Nothing, if the restore applies. On another machine family (or different CPU features) the pod cold-starts silently | **One family**, size fallback only, with Guaranteed QoS | Restore. Not quoted here: measure it with Resume → Ready in the demo | State lives in memory or running processes and cannot be rebuilt |

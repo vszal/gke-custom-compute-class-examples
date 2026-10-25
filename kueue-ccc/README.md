@@ -6,4 +6,8 @@
 > priority here is `g2`, so no fallback catches the gap. Verify with
 > `gcloud compute machine-types list --filter="name~^g2- AND zone~^REGION-"`.
 
+> **Class name.** The class here is `kueue-cost-optimized` (the tutorial calls it
+> `cost-optimized`), so it doesn't collide with the `cost-optimized` class in
+> [`static-node-pools`](../static-node-pools).
+
 The files in this repo are to be used in conjunction with the tutorial [Practical Guide to Kueue and Custom Compute Classes](https://medium.com/google-cloud/practical-guide-to-kueue-and-custom-compute-classes-85a3fe287487) 
