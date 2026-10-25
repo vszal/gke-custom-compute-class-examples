@@ -275,7 +275,7 @@ Keep the SSH terminal open and navigate to **`http://localhost:8881`** in your l
 
 New to the demo? A floating **Guided tour** panel (bottom-right) walks through what to do first. It shows a different step list in pause mode and Substrate mode, based on the mode the server reports, and marks steps done from live telemetry (Capacity ready, target set, sandboxes placed, fallback or spill seen) or with **Mark done**. Collapse it, close it with **X**, and reopen it with the **Guide** button in the header; it opens on your first visit and remembers your choice in `localStorage`. The tour is data-driven: edit `STEPS` in [`app/static/guide.js`](./app/static/guide.js).
 
-The header **Capacity** badge reads *warming up* until every `CapacityBuffer` is `ReadyForProvisioning` and the suspended standby nodes cover the standby replicas, then *ready to scale* (always ready in `--mock`). Wait for it before your first surge.
+The header **Capacity** badge reads *warming up* until every `CapacityBuffer` is `ReadyForProvisioning` and the suspended standby nodes cover the standby replicas, then *ready to scale* (always ready in `--mock`). Wait for it before your first surge. It goes back to *warming up* for about 3–4 minutes after a burst or scale-down, while replacement standby nodes boot, wait out the buffer's 2-minute init time and suspend; wait for green again before the next measured run.
 
 ### 2. ComputeClass observability matrix & status disambiguation
 

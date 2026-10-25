@@ -7,7 +7,7 @@ const STEPS = {
     {
       id: "capacity",
       title: "Wait for Capacity: ready to scale",
-      text: "The amber Capacity badge in the header, at the top of the page, turns green when every CapacityBuffer is ready and the standby nodes are suspended. You can scale earlier, but then you measure cold node starts, not the warm layer.",
+      text: "The amber Capacity badge in the header, at the top of the page, turns green when every CapacityBuffer is ready and the standby nodes are suspended. You can scale earlier, but then you measure cold node starts, not the warm layer. It goes amber again for about 3–4 minutes after a scale-down or burst while standby nodes are rebuilt (boot, then a 2-minute init time, then suspend); that is normal.",
       show: "warmup-badge",
       done: (c) => c.summary.capacityWarmup ? !!c.summary.capacityWarmup.ready : true,
       latch: true,
@@ -51,7 +51,7 @@ const STEPS = {
     {
       id: "capacity",
       title: "Wait for Capacity: ready to scale",
-      text: "The amber Capacity badge in the header, at the top of the page, turns green when every CapacityBuffer is ready and the standby nodes are suspended. Scaling earlier measures cold node starts instead of the warm layer.",
+      text: "The amber Capacity badge in the header, at the top of the page, turns green when every CapacityBuffer is ready and the standby nodes are suspended. Scaling earlier measures cold node starts instead of the warm layer. It goes amber again for about 3–4 minutes after a scale-down or burst while standby nodes are rebuilt (boot, then a 2-minute init time, then suspend); that is normal.",
       show: "warmup-badge",
       done: (c) => c.summary.capacityWarmup ? !!c.summary.capacityWarmup.ready : true,
       latch: true,
@@ -108,7 +108,7 @@ const STEPS = {
     {
       id: "capacity",
       title: "Wait for Capacity: ready to scale",
-      text: "The amber Capacity badge in the header, at the top of the page, turns green when every CapacityBuffer is ready and the standby nodes are suspended. Scaling earlier measures cold node starts instead of the warm layer.",
+      text: "The amber Capacity badge in the header, at the top of the page, turns green when every CapacityBuffer is ready and the standby nodes are suspended. Scaling earlier measures cold node starts instead of the warm layer. It goes amber again for about 3–4 minutes after a scale-down or burst while standby nodes are rebuilt (boot, then a 2-minute init time, then suspend); that is normal.",
       show: "warmup-badge",
       done: (c) => c.summary.capacityWarmup ? !!c.summary.capacityWarmup.ready : true,
       latch: true,

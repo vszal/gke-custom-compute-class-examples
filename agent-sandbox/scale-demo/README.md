@@ -147,6 +147,10 @@ right away. The standby buffers then create nodes and suspend them; the header's
 suspended, then "ready to scale". You can scale earlier, but the run then measures cold node
 starts instead of the warm layer.
 
+The badge goes amber again after a burst or scale-down: the standby nodes that served the burst
+are consumed, and replacements take about 3–4 minutes (boot, the buffer's 2-minute
+`standby-capacity-init-time`, then suspend). Wait for green again before the next measured run.
+
 ### Run the tower
 
 ```bash

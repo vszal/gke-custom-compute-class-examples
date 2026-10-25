@@ -9,7 +9,7 @@ const STEPS = {
     {
       id: "warm",
       title: "Wait for Capacity: ready to scale",
-      body: "The amber Capacity badge in the header, at the top of the page, turns green when every CapacityBuffer is ready and the standby nodes are suspended (a few minutes after install). Scaling earlier works, but you would be measuring cold starts.",
+      body: "The amber Capacity badge in the header, at the top of the page, turns green when every CapacityBuffer is ready and the standby nodes are suspended (a few minutes after install). Scaling earlier works, but you would be measuring cold starts. It goes amber again for about 3–4 minutes after a scale-down or burst while standby nodes are rebuilt (boot, then a 2-minute init time, then suspend); that is normal.",
       show: "capacity-badge",
       detect: (c) => c.summary.capacityWarmup === true
     },
@@ -62,7 +62,7 @@ const STEPS = {
     {
       id: "warm",
       title: "Wait for Capacity: ready to scale",
-      body: "The amber Capacity badge in the header, at the top of the page, turns green once every CapacityBuffer (including the per-family seed buffers) is ready and the standby nodes are suspended.",
+      body: "The amber Capacity badge in the header, at the top of the page, turns green once every CapacityBuffer (including the per-family seed buffers) is ready and the standby nodes are suspended. It goes amber again for about 3–4 minutes after a scale-down or burst while standby nodes are rebuilt (boot, then a 2-minute init time, then suspend); that is normal.",
       show: "capacity-badge",
       detect: (c) => c.summary.capacityWarmup === true
     },
