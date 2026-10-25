@@ -7,7 +7,8 @@ const STEPS = {
     {
       id: "capacity",
       title: "Wait for Capacity: ready to scale",
-      text: "The header's Capacity badge turns green when every CapacityBuffer is ready and the standby nodes are suspended. You can scale earlier, but then you measure cold node starts, not the warm layer.",
+      text: "The amber Capacity badge in the header, at the top of the page, turns green when every CapacityBuffer is ready and the standby nodes are suspended. You can scale earlier, but then you measure cold node starts, not the warm layer.",
+      show: "warmup-badge",
       done: (c) => c.summary.capacityWarmup ? !!c.summary.capacityWarmup.ready : true,
       latch: true,
     },
@@ -50,7 +51,8 @@ const STEPS = {
     {
       id: "capacity",
       title: "Wait for Capacity: ready to scale",
-      text: "The Capacity badge turns green when every CapacityBuffer is ready and the standby nodes are suspended. Scaling earlier measures cold node starts instead of the warm layer.",
+      text: "The amber Capacity badge in the header, at the top of the page, turns green when every CapacityBuffer is ready and the standby nodes are suspended. Scaling earlier measures cold node starts instead of the warm layer.",
+      show: "warmup-badge",
       done: (c) => c.summary.capacityWarmup ? !!c.summary.capacityWarmup.ready : true,
       latch: true,
     },
@@ -63,8 +65,8 @@ const STEPS = {
     },
     {
       id: "suspend",
-      title: "Press Snapshot & suspend all",
-      text: "Each running session is snapshotted first, then set to Suspended and its pod deleted. Watch Snapshotting fall to 0, Suspended rise, and Snapshot latency fill in.",
+      title: "Press the session button: Snapshot & suspend all",
+      text: "With all sessions running, the session control next to Sessions (Pod Snapshots) reads Snapshot & suspend all. Each running session is snapshotted first, then set to Suspended and its pod deleted. Watch Snapshotting fall to 0, Suspended rise, and Snapshot latency fill in.",
       done: (c) => c.n(c.sessions.suspended) > 0,
       latch: true,
     },
@@ -76,8 +78,8 @@ const STEPS = {
     },
     {
       id: "resume",
-      title: "Press Resume all and read the latency",
-      text: "Each session restores from its latest snapshot into a new pod. Read Resume → Ready in the Agents card once the count matches your sessions.",
+      title: "Press the session button again: Resume all",
+      text: "Once every session is suspended the same button reads Resume all (the Sessions pill shows the counts). Each session restores from its latest snapshot into a new pod. Read Resume → Ready in the Agents card once the count matches your sessions.",
       done: (c) => c.n(c.lat.resume && c.lat.resume.count) > 0,
       latch: true,
     },
@@ -106,7 +108,8 @@ const STEPS = {
     {
       id: "capacity",
       title: "Wait for Capacity: ready to scale",
-      text: "The Capacity badge turns green when every CapacityBuffer is ready and the standby nodes are suspended. Scaling earlier measures cold node starts instead of the warm layer.",
+      text: "The amber Capacity badge in the header, at the top of the page, turns green when every CapacityBuffer is ready and the standby nodes are suspended. Scaling earlier measures cold node starts instead of the warm layer.",
+      show: "warmup-badge",
       done: (c) => c.summary.capacityWarmup ? !!c.summary.capacityWarmup.ready : true,
       latch: true,
     },
@@ -125,8 +128,8 @@ const STEPS = {
     },
     {
       id: "suspend",
-      title: "Press Snapshot & suspend all",
-      text: "The tower reads each session's state, snapshots it, then sets it to Suspended and deletes its pod. Watch Snapshotting fall to 0, Suspended rise, and Snapshot latency fill in.",
+      title: "Press the session button: Snapshot & suspend all",
+      text: "With all sessions running, the session control next to Sessions (Pod Snapshots) reads Snapshot & suspend all. The tower reads each session's state, snapshots it, then sets it to Suspended and deletes its pod. Watch Snapshotting fall to 0, Suspended rise, and Snapshot latency fill in.",
       done: (c) => c.n(c.sessions.suspended) > 0,
       latch: true,
     },
@@ -138,15 +141,15 @@ const STEPS = {
     },
     {
       id: "resume",
-      title: "Press Resume all and read the latency",
-      text: "Each session restores its root filesystem into a new pod, on whichever family the class provides, and its process starts again. Read Resume → Ready in the Agents card once the count matches your sessions.",
+      title: "Press the session button again: Resume all",
+      text: "Once every session is suspended the same button reads Resume all (the Sessions pill shows the counts). Each session restores its root filesystem into a new pod, on whichever family the class provides, and its process starts again. Read Resume → Ready in the Agents card once the count matches your sessions.",
       done: (c) => c.n(c.lat.resume && c.lat.resume.count) > 0,
       latch: true,
     },
     {
       id: "survived",
       title: "Read what survived",
-      text: "Files kept should match the session count and Memory kept should be 0: the file counter carried on, the in-memory counter restarted. A Files kept of 0 means the restore did not apply (see README Sharp edges).",
+      text: "Files kept should read N of N and Memory kept 0 of N: the file counter carried on, the in-memory counter restarted. A Files kept of 0 of N means the restore did not apply (see README Sharp edges).",
       done: (c) => !!c.summary.resumeSurvival && c.n(c.summary.resumeSurvival.checked) > 0,
       latch: true,
     },
@@ -262,6 +265,21 @@ const STEPS = {
       body.appendChild(el("div", "guide-step-title", step.title + (step.optional ? " (optional)" : "")));
       if (status === "current" || status === "upcoming") {
         body.appendChild(el("div", "guide-step-text", typeof step.text === "function" ? step.text(ctx) : step.text));
+      }
+      if (step.show && status !== "done") {
+        const sm = el("button", "guide-mini-btn guide-show-btn", "Show me");
+        sm.title = "Scroll to and highlight it";
+        sm.onclick = () => {
+          const t = document.getElementById(step.show);
+          if (!t) return;
+          t.scrollIntoView({ behavior: "smooth", block: "center" });
+          t.classList.remove("flash-highlight");
+          void t.offsetWidth;
+          t.classList.add("flash-highlight");
+          setTimeout(() => t.classList.remove("flash-highlight"), 2000);
+        };
+        body.appendChild(sm);
+        body.appendChild(document.createTextNode(" "));
       }
       if (status !== "done" && (step.manual || status === "current")) {
         const b = el("button", "guide-mini-btn", step.manual ? "Mark done" : "Skip");

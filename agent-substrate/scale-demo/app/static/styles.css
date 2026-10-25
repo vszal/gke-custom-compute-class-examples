@@ -715,9 +715,25 @@ body {
 }
 
 .capacity-badge.warming {
-  background-color: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  background-color: rgba(245, 158, 11, 0.3);
+  color: #fcd34d;
+  border: 1px solid #f59e0b;
+  font-weight: 600;
+  animation: capacity-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes capacity-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55); }
+  50% { box-shadow: 0 0 0 5px rgba(245, 158, 11, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capacity-badge.warming { animation: none; }
+}
+
+.flash-highlight {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 3px;
 }
 
 .header-right-row {

@@ -9,7 +9,8 @@ const STEPS = {
     {
       id: "warm",
       title: "Wait for Capacity: ready to scale",
-      body: "The header Capacity badge turns green when every CapacityBuffer is ready and the standby nodes are suspended (a few minutes after install). Scaling earlier works, but you would be measuring cold starts.",
+      body: "The amber Capacity badge in the header, at the top of the page, turns green when every CapacityBuffer is ready and the standby nodes are suspended (a few minutes after install). Scaling earlier works, but you would be measuring cold starts.",
+      show: "capacity-badge",
       detect: (c) => c.summary.capacityWarmup === true
     },
     {
@@ -61,7 +62,8 @@ const STEPS = {
     {
       id: "warm",
       title: "Wait for Capacity: ready to scale",
-      body: "The header Capacity badge turns green once every CapacityBuffer (including the per-family seed buffers) is ready and the standby nodes are suspended.",
+      body: "The amber Capacity badge in the header, at the top of the page, turns green once every CapacityBuffer (including the per-family seed buffers) is ready and the standby nodes are suspended.",
+      show: "capacity-badge",
       detect: (c) => c.summary.capacityWarmup === true
     },
     {
@@ -189,6 +191,7 @@ const GuideTour = (() => {
         <div class="guide-step-body">
           <div class="guide-step-title">${r.step.title}</div>
           <div class="guide-step-text">${r.step.body}</div>
+          ${r.step.show && r.status !== "done" ? `<button type="button" class="guide-mark guide-show" data-show="${r.step.show}">Show me</button> ` : ""}
           ${r.status !== "done" ? `<button type="button" class="guide-mark" data-step="${r.step.id}">Mark done</button>` : ""}
         </div>
       </li>`).join("");
@@ -205,8 +208,19 @@ const GuideTour = (() => {
   }
 
   function onClick(ev) {
-    const t = ev.target.closest("[data-act],[data-step]");
+    const t = ev.target.closest("[data-act],[data-step],[data-show]");
     if (!t) return;
+    if (t.dataset.show) {
+      const target = document.getElementById(t.dataset.show);
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        target.classList.remove("flash-highlight");
+        void target.offsetWidth;
+        target.classList.add("flash-highlight");
+        setTimeout(() => target.classList.remove("flash-highlight"), 2000);
+      }
+      return;
+    }
     if (t.dataset.step) state.manual[mode][t.dataset.step] = true;
     else if (t.dataset.act === "close") state.open = false;
     else if (t.dataset.act === "collapse") state.collapsed = !state.collapsed;

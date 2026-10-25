@@ -215,6 +215,7 @@ function updateUI(payload) {
   const wuBadge = document.getElementById("warmup-badge");
   if (wuBadge) {
     wuBadge.classList.toggle("healthy", !!wu.ready);
+    wuBadge.classList.toggle("warming", !wu.ready);
     wuBadge.title = wu.detail || "";
     document.getElementById("warmup-val").innerText = wu.ready
       ? "ready to scale"
@@ -860,6 +861,7 @@ function applyModeLayout(mode) {
   toggle("runtime-group", !snap);
   toggle("warm-pool-group", !snap);
   toggle("session-group", snap);
+  toggle("kpi-session-pill-row", snap);
   toggle("kpi-warm-row", !snap);
   toggle("kpi-session-row", snap);
   toggle("kpi-snaplat-row", snap);
@@ -895,6 +897,7 @@ function updateAgentDetail(summary, lat) {
   };
   if (isSessionMode(currentMode)) {
     const ss = summary.sessions || {};
+    lastSessions = ss;
     set("kpi-sess-suspended", ss.suspended || 0);
     set("kpi-sess-snap", ss.snapshotting || 0);
     set("kpi-sess-error", ss.error || 0);
@@ -903,16 +906,21 @@ function updateAgentDetail(summary, lat) {
     set("kpi-resume-lat", ((lat.resume && lat.resume.avg) || 0) + "s");
     set("kpi-resume-count", (lat.resume && lat.resume.count) || 0);
     const sv = summary.resumeSurvival;
-    if (sv) {
-      const total = sv.checked || 0;
-      set("kpi-surv-files", `${sv.fileKept || 0} / ${total}`);
-      set("kpi-surv-mem", `${sv.memoryKept || 0} / ${total}`);
-      set("kpi-surv-note", (sv.pending ? `${sv.pending} still reading` : "read from session logs") + (sv.simulated ? " (simulated)" : ""));
+    const checked = sv ? (sv.checked || 0) : 0;
+    if (checked > 0) {
+      const tail = (sv.pending ? ` (${sv.pending} still reading)` : "") + (sv.simulated ? " (simulated)" : "");
+      set("kpi-surv-files", `${sv.fileKept || 0} of ${checked}`);
+      set("kpi-surv-mem", `${sv.memoryKept || 0} of ${checked}`);
+      set("kpi-surv-files-cap", "sessions with files intact" + tail);
+      set("kpi-surv-mem-cap", "sessions with memory intact");
     } else {
-      set("kpi-surv-files", "-");
-      set("kpi-surv-mem", "-");
-      set("kpi-surv-note", "resume a snapshotted session to read it");
+      const cap = sv && sv.pending ? `${sv.pending} still reading` : "after the first resume";
+      set("kpi-surv-files", "\u2014");
+      set("kpi-surv-mem", "\u2014");
+      set("kpi-surv-files-cap", cap);
+      set("kpi-surv-mem-cap", cap);
     }
+    renderSessionControl(ss);
     return;
   }
   const wp = summary.warmPool || {};
@@ -923,11 +931,73 @@ function updateAgentDetail(summary, lat) {
   set("kpi-warm-hits", `${cr.warmHits || 0} / ${cr.count || 0}`);
 }
 
+// One state-aware control for the snapshot/resume cycle. State comes from summary.sessions;
+// the POST /api/sessions {action} contract is unchanged.
+let sessionPending = null; // {action, until}: bridges the gap before telemetry shows the transition
+let sessionPrimaryAction = null;
+let sessionSecondaryAction = null;
+
+function renderSessionControl(ss) {
+  const n = (v) => Number(v) || 0;
+  const running = n(ss.running), starting = n(ss.starting), snapshotting = n(ss.snapshotting);
+  const suspended = n(ss.suspended), errored = n(ss.error);
+  const total = n(ss.total) || running + starting + snapshotting + suspended + errored;
+  if (sessionPending && (Date.now() > sessionPending.until || snapshotting + starting > 0)) {
+    sessionPending = null;
+  }
+  const parts = [];
+  if (running) parts.push(`${running} running`);
+  if (snapshotting) parts.push(`${snapshotting} snapshotting\u2026`);
+  if (starting) parts.push(`${starting} starting\u2026`);
+  if (suspended) parts.push(`${suspended} suspended`);
+  if (errored) parts.push(`${errored} error`);
+  const pillText = "Sessions: " + (parts.length ? parts.join(" \u00b7 ") : "none");
+  const pillState = snapshotting || starting ? "busy" : errored ? "error" : suspended && running ? "mixed" : suspended ? "suspended" : running ? "running" : "none";
+  document.querySelectorAll(".session-pill-live").forEach((el) => {
+    el.textContent = pillText;
+    el.className = `session-pill session-pill-live ${pillState}`;
+  });
+
+  let label = "Snapshot & suspend all", disabled = false, busy = false, hint = "";
+  let primary = null, secondary = null;
+  if (sessionPending || snapshotting || starting) {
+    busy = true; disabled = true;
+    label = snapshotting ? "Snapshotting\u2026"
+      : sessionPending ? (sessionPending.action === "resume" ? "Resuming\u2026" : "Snapshotting\u2026")
+      : suspended > 0 ? "Resuming\u2026" : "Starting\u2026";
+  } else if (total === 0) {
+    disabled = true; hint = "Scale up sessions first";
+  } else if (suspended > 0 && running === 0) {
+    label = "Resume all"; primary = "resume";
+  } else if (suspended > 0 && running > 0) {
+    label = `Resume all (${suspended})`; primary = "resume";
+    secondary = "suspend";
+  } else if (running > 0) {
+    primary = "suspend";
+  } else {
+    disabled = true; hint = "No running sessions to snapshot";
+  }
+  sessionPrimaryAction = primary;
+  sessionSecondaryAction = secondary;
+  const btn = document.getElementById("session-primary-btn");
+  if (!btn) return;
+  btn.disabled = disabled;
+  document.getElementById("session-primary-label").textContent = label;
+  document.getElementById("session-spinner").classList.toggle("hidden", !busy);
+  const sec = document.getElementById("session-secondary-btn");
+  sec.classList.toggle("hidden", !secondary);
+  sec.textContent = secondary ? `or snapshot & suspend the ${running} running` : "";
+  document.getElementById("session-hint").textContent = hint;
+}
+
+function sessionPrimary() { if (sessionPrimaryAction) sessionAction(sessionPrimaryAction); }
+function sessionSecondary() { if (sessionSecondaryAction) sessionAction(sessionSecondaryAction); }
+
+let lastSessions = {};
 async function sessionAction(action) {
-  const btn = document.getElementById(action === "suspend" ? "suspend-btn" : "resume-btn");
-  const label = btn.innerText;
-  btn.disabled = true;
-  btn.innerText = action === "suspend" ? "Snapshotting..." : "Resuming...";
+  sessionPending = { action, until: Date.now() + 10000 };
+  sessionPrimaryAction = sessionSecondaryAction = null;
+  renderSessionControl(lastSessions);
   try {
     const res = await fetch("/api/sessions", {
       method: "POST",
@@ -936,15 +1006,12 @@ async function sessionAction(action) {
     });
     const result = await res.json();
     console.log(`Sessions ${action}:`, result);
-    btn.innerText = res.ok ? `${result.sessions} sessions` : "Failed";
+    if (!res.ok) sessionPending = null;
   } catch (err) {
     console.error("Session action error:", err);
-    btn.innerText = "Failed";
+    sessionPending = null;
   }
-  setTimeout(() => {
-    btn.disabled = false;
-    btn.innerText = label;
-  }, 1500);
+  renderSessionControl(lastSessions);
 }
 
 async function resetMetrics() {

@@ -58,9 +58,11 @@
         </div>
         <div class="density-group hidden" id="session-group">
           <label title="Suspend snapshots each running session first (PodSnapshotManualTrigger), then sets operatingMode Suspended">Sessions (Pod Snapshots):</label>
-          <div class="radio-buttons">
-            <button id="suspend-btn" class="btn btn-secondary" onclick="sessionAction('suspend')">Snapshot &amp; suspend all</button>
-            <button id="resume-btn" class="btn btn-secondary" onclick="sessionAction('resume')">Resume all</button>
+          <div class="session-control">
+            <span class="session-pill session-pill-live" title="Live session state">Sessions: none</span>
+            <button id="session-primary-btn" class="btn btn-primary" disabled onclick="sessionPrimary()"><span id="session-spinner" class="spinner hidden" aria-hidden="true"></span><span id="session-primary-label">Snapshot &amp; suspend all</span></button>
+            <button id="session-secondary-btn" class="session-link hidden" onclick="sessionSecondary()"></button>
+            <span id="session-hint" class="session-hint"></span>
           </div>
         </div>
         <div class="buffer-group">
@@ -133,6 +135,7 @@
           <span>Claim &rarr; Ready: <strong id="kpi-claim-lat">0.0s</strong></span>
           <span>Warm hits: <strong id="kpi-warm-hits">0 / 0</strong></span>
         </div>
+        <div class="session-kpi-pill hidden" id="kpi-session-pill-row"><span class="session-pill session-pill-live">Sessions: none</span></div>
         <div class="kpi-detail-row hidden" id="kpi-session-row">
           <span>Suspended: <strong id="kpi-sess-suspended" class="text-info">0</strong></span>
           <span>Snapshotting: <strong id="kpi-sess-snap">0</strong></span>
@@ -142,10 +145,17 @@
           <span>Snapshot: <strong id="kpi-snap-lat">0.0s</strong> (<span id="kpi-snap-count">0</span>)</span>
           <span>Resume &rarr; Ready: <strong id="kpi-resume-lat">0.0s</strong> (<span id="kpi-resume-count">0</span>)</span>
         </div>
-        <div class="kpi-detail-row hidden" id="kpi-survival-row" title="Each session logs its state. The tower reads it before the snapshot and after the resume: file state lives on the root filesystem, process state only in memory.">
-          <span>Files kept: <strong id="kpi-surv-files" class="text-success">-</strong></span>
-          <span>Memory kept: <strong id="kpi-surv-mem" class="text-warning">-</strong></span>
-          <span id="kpi-surv-note">resume a snapshotted session to read it</span>
+        <div class="survival-block hidden" id="kpi-survival-row" title="Each session logs its state. The tower reads it before the snapshot and after the resume: file state lives on the root filesystem, process state only in memory.">
+          <div class="survival-tile">
+            <span class="survival-label">Files kept</span>
+            <strong id="kpi-surv-files" class="survival-value text-success">&mdash;</strong>
+            <span id="kpi-surv-files-cap" class="survival-cap">after the first resume</span>
+          </div>
+          <div class="survival-tile">
+            <span class="survival-label">Memory kept</span>
+            <strong id="kpi-surv-mem" class="survival-value text-warning">&mdash;</strong>
+            <span id="kpi-surv-mem-cap" class="survival-cap">after the first resume</span>
+          </div>
         </div>
       </div>
 

@@ -51,11 +51,12 @@ The surge controls, KPI cards, node charts and the ComputeClass status matrix (A
   `agent-session-template` and carrying the pod label `session=<name>`. The
   `PodSnapshotPolicy` groups snapshots by that label, so each session gets its own
   snapshot lineage.
-- **Suspend** (button, every running session): for each one the tower creates a
+- **Session control** (one state-aware button plus a `Sessions: ...` pill): reads "Snapshot & suspend all" while sessions run, "Resume all" once they are suspended (with a secondary link when mixed), and is disabled with a spinner while sessions are snapshotting or starting. It calls `POST /api/sessions` with `suspend` or `resume`.
+- **Suspend** (every running session): for each one the tower creates a
   `PodSnapshotManualTrigger`, waits until it reports `status.snapshotCreated`, then sets
   the Sandbox's `spec.operatingMode: Suspended`. The pod is deleted and its node can
   scale down.
-- **Resume** (button, every suspended session) sets `operatingMode: Running`. The new pod restores from the latest snapshot.
+- **Resume** (every suspended session) sets `operatingMode: Running`. The new pod restores from the latest snapshot.
   The KPI row shows snapshot and resume latency.
 - **One family, three sizes.** A whole-pod snapshot restores only on the machine family
   that took it, so the class is `n4-standard-8` → `n4-standard-16` → `n4-standard-4`.
@@ -79,7 +80,7 @@ The surge controls, KPI cards, node charts and the ComputeClass status matrix (A
   in time; **Memory kept** counts sessions still running the same process. Sessions whose
   log could not be read are left unchecked, not counted. This needs `pods/log` get on the
   dashboard's ClusterRole (in `manifests/05-dashboard.yaml`).
-- **Expected result**: Files kept equals the session count, Memory kept is 0.
+- **Expected result**: Files kept reads N of N (N = sessions checked), Memory kept 0 of N. Both show a dash until the first resume has been read.
 
 ---
 
@@ -142,7 +143,7 @@ buffers), `snapshots-rootfs/04-sessions.yaml` and the dashboard.
 
 `install.sh` returns once the dashboard answers (readiness probe), so you can port-forward
 right away. The standby buffers then create nodes and suspend them; the header's
-**Capacity** badge reads "warming up" until every buffer is ready and the standby nodes are
+**Capacity** badge (amber and pulsing) reads "warming up" until every buffer is ready and the standby nodes are
 suspended, then "ready to scale". You can scale earlier, but the run then measures cold node
 starts instead of the warm layer.
 
@@ -171,7 +172,7 @@ sessions (slider to 400).
 ### Guided tour
 
 The page opens with an optional **Guided tour** panel (bottom right) that walks a first-time
-user through the mode they are in: wait for the Capacity badge, a small preset, a large preset
+user through the mode they are in: wait for the Capacity badge (its first step has a "Show me" link that highlights it), a small preset, a large preset
 (stateless also covers the runtime toggle; snapshots cover suspend and resume), then Reset and
 cleanup. Steps tick off from the live telemetry where there is a signal and otherwise have a
 "Mark done" button. Collapse it with the arrow, close it with the X, and reopen it with the
