@@ -49,7 +49,7 @@ const STEPS = {
     {
       id: "zero",
       title: "Scale back to 0",
-      body: "Click the <b>0: Idle</b> preset. Workers go away; buffers stay warm until the nodes consolidate.",
+      body: "Click the <b>0: Idle</b> preset. Workers go away; a few empty Ready nodes can remain as the CapacityBuffers' warm capacity until the consolidation delay passes.",
       detect: (c, done) => done("small") && (c.summary.targetAgents || 0) === 0
     },
     {

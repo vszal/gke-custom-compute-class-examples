@@ -37,7 +37,7 @@ const STEPS = {
     {
       id: "reset",
       title: "Scale to 0 and Reset data & metrics",
-      text: "Press preset 0, wait for the agents to drain, then Reset data & metrics to clear chart history, latency averages and event counters before another run.",
+      text: "Press preset 0, wait for the agents to drain, then Reset data & metrics to clear chart history, latency averages and event counters before another run. A few empty Ready nodes can remain: they are the CapacityBuffers' warm capacity, which goes back to suspended or is removed after the consolidation delay.",
       done: (c) => c.isDone("large") && c.n(c.summary.targetAgents) === 0,
     },
     {
@@ -94,7 +94,7 @@ const STEPS = {
     {
       id: "reset",
       title: "Scale to 0 and Reset data & metrics",
-      text: "Press preset 0 and wait for the sessions to go, then Reset data & metrics to clear history and latency averages.",
+      text: "Press preset 0 and wait for the sessions to go, then Reset data & metrics to clear history and latency averages. A few empty Ready nodes can remain: they are the CapacityBuffers' warm capacity, which goes back to suspended or is removed after the consolidation delay.",
       done: (c) => c.isDone("resume") && c.n(c.summary.targetAgents) === 0,
     },
     {
@@ -164,7 +164,7 @@ const STEPS = {
     {
       id: "reset",
       title: "Scale to 0 and Reset data & metrics",
-      text: "Press preset 0 and wait for the sessions to go, then Reset data & metrics to clear history and latency averages.",
+      text: "Press preset 0 and wait for the sessions to go, then Reset data & metrics to clear history and latency averages. A few empty Ready nodes can remain: they are the CapacityBuffers' warm capacity, which goes back to suspended or is removed after the consolidation delay.",
       done: (c) => c.isDone("resume") && c.n(c.summary.targetAgents) === 0,
     },
     {
