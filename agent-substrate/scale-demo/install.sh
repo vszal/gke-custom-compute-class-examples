@@ -100,7 +100,10 @@ pin_digest() {
 install_substrate() {
   echo "Preflight checks..."
   if ! kubectl ate --help &>/dev/null; then
-    echo "Error: the kubectl-ate plugin is not on PATH (it ships with Agent Substrate)." >&2
+    echo "Error: the kubectl-ate plugin is not on PATH. It is a separate binary you build from source:" >&2
+    echo "  git clone --branch <your Substrate version> https://github.com/agent-substrate/substrate.git" >&2
+    echo "  cd substrate && go install ./cmd/kubectl-ate    # needs Go 1.27+; installs to \$(go env GOPATH)/bin" >&2
+    echo "Then add that bin directory to PATH. (go install ...@latest does not work: the module uses replace directives.)" >&2
     exit 1
   fi
   if ! real_substrate_crds; then
@@ -158,7 +161,8 @@ install_substrate() {
     kubectl ate create atespace "${NAMESPACE}"
   fi
   local existing
-  existing="$(kubectl ate get actor-templates -a "${NAMESPACE}" 2>/dev/null | awk 'NR>1{print $2}')"
+  # No templates yet makes this fail; under pipefail that would end the script silently.
+  existing="$(kubectl ate get actor-templates -a "${NAMESPACE}" 2>/dev/null | awk 'NR>1{print $2}' || true)"
   local rt fam sclass sconfig
   local -a families
   for rt in "${runtimes[@]}"; do
