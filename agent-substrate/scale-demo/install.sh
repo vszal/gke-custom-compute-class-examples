@@ -157,12 +157,21 @@ install_substrate() {
   done
 
   echo "Creating atespace and per-family ActorTemplates..."
-  if ! kubectl ate get atespaces 2>/dev/null | awk 'NR>1{print $1}' | grep -qx "${NAMESPACE}"; then
+  # Capture stdout only; stderr (auth, connectivity, plugin/server version mismatch) must
+  # reach the user instead of reading as "nothing exists" and failing later with AlreadyExists.
+  local atespaces existing
+  atespaces="$(kubectl ate get atespaces)" || {
+    echo "Error: 'kubectl ate get atespaces' failed (see above). A protobuf 'unknown field' error means the plugin version does not match the server's; see the README." >&2
+    exit 1
+  }
+  if ! awk 'NR>1{print $1}' <<<"${atespaces}" | grep -qx "${NAMESPACE}"; then
     kubectl ate create atespace "${NAMESPACE}"
   fi
-  local existing
-  # No templates yet makes this fail; under pipefail that would end the script silently.
-  existing="$(kubectl ate get actor-templates -a "${NAMESPACE}" 2>/dev/null | awk 'NR>1{print $2}' || true)"
+  existing="$(kubectl ate get actor-templates -a "${NAMESPACE}")" || {
+    echo "Error: 'kubectl ate get actor-templates -a ${NAMESPACE}' failed (see above)." >&2
+    exit 1
+  }
+  existing="$(awk 'NR>1{print $2}' <<<"${existing}")"
   local rt fam sclass sconfig
   local -a families
   for rt in "${runtimes[@]}"; do

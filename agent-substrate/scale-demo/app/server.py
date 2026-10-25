@@ -2388,7 +2388,15 @@ async def stream_telemetry():
 # Serve static web frontend
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_dir):
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    class NoCacheStaticFiles(StaticFiles):
+        # The UI ships as a ConfigMap and changes on every reinstall; revalidate so a
+        # redeploy never needs a hard refresh.
+        async def get_response(self, path, scope):
+            response = await super().get_response(path, scope)
+            response.headers["Cache-Control"] = "no-cache"
+            return response
+
+    app.mount("/static", NoCacheStaticFiles(directory=static_dir), name="static")
 
 
 @app.get("/", response_class=HTMLResponse)
