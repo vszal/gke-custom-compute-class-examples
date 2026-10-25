@@ -66,8 +66,8 @@ To run against a live GKE cluster, your cluster must meet the following requirem
   | `CapacityQuota` | `*-tier-cap`, class-wide cap | 1.36.2-gke.2064000 | [Configure granular resource limits](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/configure-capacity-quotas) |
   | GKE Sandbox, gVisor and microVM | Pause mode | 1.37.0-gke.4713000 for microVM | [Isolate workloads by using GKE Sandbox](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/sandbox-pods#choose-sandbox-auto-created), [Use nested VMs with GKE clusters](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/nested-virtualization) |
   | Agent Substrate | Substrate mode only | 1.37 | [Install Agent Substrate on GKE](https://docs.cloud.google.com/kubernetes-engine/ai-ml/install-overview-substrate). See [the example's prerequisites](../README.md#prerequisites). |
-- **Node Auto-Provisioning (NAP)**: Enabled (`--enable-autoprovisioning`) with sufficient cluster-wide CPU and memory limits (at least `800` vCPUs and `3200` GB memory recommended to test the full 2,000-agent surge).
-- **Autoscaling profile**: `--autoscaling-profile=optimize-utilization` is strongly recommended for rapid scale-down of idle and standby nodes.
+- **Node pool auto-creation**: Don't enable cluster-level node auto-provisioning (`--enable-autoprovisioning`). It isn't needed and isn't recommended, because it forces you to set cluster-wide CPU and memory limits. Each ComputeClass here turns on auto-creation for itself with `nodePoolAutoCreation.enabled: true`, scoped to just that class and with no cluster-level limits to size. Use quota (`CapacityQuota`) to cap the surge instead.
+- **Autoscaling profile**: Leave the cluster default. Fast scale-down comes from `spec.autoscalingPolicy.consolidationDelayMinutes` in each ComputeClass, which is tuned per class and does the job of `--autoscaling-profile=optimize-utilization`.
 - **Region & machine availability**: Choose a region offering the ladder's machine series (`c3`, `n4`, `c4`, `c2`, `n2`), such as `us-central1`. microVM needs Intel series that support nested virtualization; these all do.
 - **Workload Identity & Dataplane V2**: Needed only for Substrate mode (`--workload-pool=<PROJECT_ID>.svc.id.goog --enable-dataplane-v2`). The [Substrate installer](https://docs.cloud.google.com/kubernetes-engine/ai-ml/install-overview-substrate) sets them up on clusters it creates.
 
@@ -85,12 +85,6 @@ gcloud container clusters create "${CLUSTER_NAME}" \
   --cluster-version=1.37 \
   --machine-type=n2-standard-2 \
   --num-nodes=1 \
-  --enable-autoprovisioning \
-  --min-cpu=0 \
-  --max-cpu=1000 \
-  --min-memory=0 \
-  --max-memory=4000 \
-  --autoscaling-profile=optimize-utilization \
   --enable-dataplane-v2 \
   --workload-pool="${PROJECT_ID}.svc.id.goog"
 
