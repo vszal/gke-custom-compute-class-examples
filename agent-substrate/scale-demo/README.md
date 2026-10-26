@@ -183,8 +183,12 @@ What it applies (from [`substrate/`](./substrate/)):
 **How the tower spills between families.** In Substrate mode the tower reconciles every 10s:
 
 - New demand goes to the first family in the ladder.
-- If a family's workers stay unscheduled for `SPILL_AFTER_SECONDS` (default 120) — its `CapacityQuota` is full, or GCE is out of capacity — the tower blocks that family for `SPILL_COOLDOWN_SECONDS` (default 300). It keeps the workers already placed there and moves the rest to the next family's pool.
-- The tower reads the cluster autoscaler's events to tell a slow family from a stuck one. A worker whose latest verdict is `TriggeredScaleUp` has a node on the way, so it does not start the spill timer until `SCALEUP_INFLIGHT_SECONDS` (default 600) pass without that node arriving. `NotTriggerScaleUp` (quota full, no matching node group) and `FailedScaleUp` (stockout) count from the moment the worker was created.
+- A family is *blocked* when it has unscheduled workers and either its ComputeClass rule is in an `OutOfResources` (or `ProvisioningSuspended`) backoff, or its `CapacityQuota` has less than one node's vCPUs free. The tower reads both as cluster objects, not autoscaler events (events proved unreliable: pending workers only reported untolerated taints). The ComputeClass `status.priorityStatuses[]` needs GKE 1.36.4+.
+  - Rule `identifier` N is the family at position N of the ladder. A backoff blocks the family until the `In backoff until` time in the condition message (UTC; `SPILL_COOLDOWN_SECONDS`, default 300, if it cannot be parsed). The generic `CapacityConstrained` reason is ignored: it appears with no load and names no expiry.
+  - Quota-full is not in the ComputeClass status. The tower compares `limit - used` of `<family>-tier-cap` and `agent-substrate-class-cap` with one node's vCPUs (the `-standard-N` of the family's rule). It blocks only while that holds.
+  - A family with a `NodeProvisioningInProgress` condition and neither of the above is waiting for a node, not stuck.
+  - Fallback: workers unscheduled for `SPILL_AFTER_SECONDS` (default 120) with none of these signals block the family for `SPILL_COOLDOWN_SECONDS`.
+- A blocked family keeps the workers already placed there; the rest move to the next family's pool.
 - The tower keeps its target in memory. When it restarts, it reads the target back from the `replicas` already on the WorkerPools, so it never scales a running demo to zero.
 - Placed workers are never moved back.
 - Scale-down removes unscheduled workers first, then the lowest families first.

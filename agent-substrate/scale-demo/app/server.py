@@ -10,7 +10,7 @@ import logging
 import os
 import re
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
@@ -96,18 +96,16 @@ SUBSTRATE_FAMILIES: Dict[str, List[str]] = {
 }
 SUBSTRATE_ALL_FAMILIES = ["c4", "c4d", "n4", "n4d", "c3", "c3d"]
 
-# A family whose workers sit unschedulable this long -- with no scale-up in flight for
-# them -- is treated as out of capacity and skipped for SPILL_COOLDOWN_SECONDS; new demand
-# goes to the next family down the ladder. Workers whose node is already being created
-# do not count (see SCALEUP_INFLIGHT_SECONDS), so this only has to outlast the delay
-# before the autoscaler records a verdict for a new pod.
+# Spill signals (GKE 1.36.4+): ComputeClass status.priorityStatuses[] says whether a
+# family's rule is provisioning, or in an OutOfResources backoff; the per-family
+# CapacityQuota (`<family>-tier-cap`, plus the class-wide cap) says whether a node still
+# fits. Pod events are deliberately not used: they proved unreliable. A family with
+# unscheduled workers and no signal at all for SPILL_AFTER_SECONDS is blocked for
+# SPILL_COOLDOWN_SECONDS as a conservative fallback.
 SPILL_AFTER_SECONDS = float(os.environ.get("SPILL_AFTER_SECONDS", "120"))
 SPILL_COOLDOWN_SECONDS = float(os.environ.get("SPILL_COOLDOWN_SECONDS", "300"))
-# A worker whose latest autoscaler event is TriggeredScaleUp is waiting on a node that is
-# already being created, not stuck; it only counts toward the spill timer if that node
-# has not arrived after this long.
-SCALEUP_INFLIGHT_SECONDS = float(os.environ.get("SCALEUP_INFLIGHT_SECONDS", "600"))
-SCALE_UP_REASONS = ("TriggeredScaleUp", "NotTriggerScaleUp", "FailedScaleUp")
+CLASS_QUOTA_NAME = "agent-substrate-class-cap"
+DEFAULT_NODE_VCPUS = 8
 SUBSTRATE_RECONCILE_SECONDS = 10.0
 
 if DEMO_MODE == "substrate":
@@ -117,7 +115,7 @@ if DEMO_MODE == "substrate":
     demo_state["quotas"].update(
         {f"{fam}-tier-cap": (24 if fam == "c3" else 96) for fam in SUBSTRATE_ALL_FAMILIES}
     )
-    demo_state["substrate"] = {"blockedUntil": {}, "poolReplicas": {}, "lastReconcile": 0.0}
+    demo_state["substrate"] = {"blockedUntil": {}, "blocks": {}, "reasons": {}, "poolReplicas": {}, "lastReconcile": 0.0}
 
 
 def get_runtime_config(runtime: Optional[str] = None) -> Dict[str, Any]:
@@ -164,43 +162,12 @@ def _k8s_ts(value: Optional[str]) -> Optional[float]:
     return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
 
 
-def latest_scale_up_verdicts(events: List[Dict[str, Any]]) -> Dict[str, Tuple[str, float]]:
-    """Maps pod name -> (reason, epoch) of the most recent Cluster Autoscaler scale-up
-    event for it: TriggeredScaleUp, NotTriggerScaleUp or FailedScaleUp."""
-    verdicts: Dict[str, Tuple[str, float]] = {}
-    for ev in events:
-        if ev.get("reason") not in SCALE_UP_REASONS:
-            continue
-        obj = ev.get("involvedObject", {})
-        if obj.get("kind") != "Pod":
-            continue
-        ts = _k8s_ts(
-            ev.get("lastTimestamp")
-            or ev.get("eventTime")
-            or ev.get("metadata", {}).get("creationTimestamp")
-        )
-        if ts is None:
-            continue
-        name = obj.get("name", "")
-        if name not in verdicts or ts >= verdicts[name][1]:
-            verdicts[name] = (ev["reason"], ts)
-    return verdicts
-
-
 def summarize_worker_pods(
     pods: List[Dict[str, Any]],
     pool_to_family: Dict[str, str],
-    verdicts: Optional[Dict[str, Tuple[str, float]]] = None,
-    now: Optional[float] = None,
-    inflight_for: float = SCALEUP_INFLIGHT_SECONDS,
 ) -> Tuple[Dict[str, int], Dict[str, int], Dict[str, float]]:
     """Counts Substrate workers per family: placed (scheduled), unschedulable, and the
-    creation time (epoch seconds) of the oldest *stuck* unschedulable one.
-
-    With `verdicts` (see latest_scale_up_verdicts), a worker whose latest autoscaler
-    event is a TriggeredScaleUp younger than `inflight_for` is waiting on a node that is
-    on its way, so it is counted as unscheduled but does not start the spill timer.
-    """
+    creation time (epoch seconds) of the oldest unschedulable one."""
     placed: Dict[str, int] = {fam: 0 for fam in pool_to_family.values()}
     unscheduled: Dict[str, int] = {fam: 0 for fam in pool_to_family.values()}
     oldest_unscheduled: Dict[str, float] = {}
@@ -217,14 +184,143 @@ def summarize_worker_pods(
             placed[fam] += 1
             continue
         unscheduled[fam] += 1
-        if verdicts is not None and now is not None:
-            reason, at = verdicts.get(meta.get("name", ""), ("", 0.0))
-            if reason == "TriggeredScaleUp" and now - at < inflight_for:
-                continue
         ts = _k8s_ts(meta.get("creationTimestamp"))
         if ts is not None:
             oldest_unscheduled[fam] = min(oldest_unscheduled.get(fam, ts), ts)
     return placed, unscheduled, oldest_unscheduled
+
+
+BACKOFF_UNTIL_REGEX = re.compile(r"In backoff until (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})")
+
+
+def parse_ladder_status(
+    cc_obj: Optional[Dict[str, Any]], families: List[str]
+) -> Dict[str, Dict[str, Any]]:
+    """Reads ComputeClass status.priorityStatuses[] into per-family signals.
+
+    `identifier` is the rule index, which is the family's position in `families`.
+    Returns {family: {"in_progress": bool, "backoff": bool, "backoff_until": epoch|None}}.
+    A backoff is a ProvisioningConstrained condition with reason OutOfResources, or a
+    ProvisioningSuspended condition. The generic CapacityConstrained reason is ignored:
+    it is present with zero load, flaps, and names no zone, config or expiry."""
+    out: Dict[str, Dict[str, Any]] = {}
+    if not cc_obj:
+        return out
+    for ps in cc_obj.get("status", {}).get("priorityStatuses", []) or []:
+        ident = str(ps.get("identifier", ""))
+        if not ident.isdigit() or int(ident) >= len(families):
+            continue
+        sig = out.setdefault(
+            families[int(ident)],
+            {"in_progress": False, "backoff": False, "backoff_until": None},
+        )
+        for c in ps.get("conditions", []) or []:
+            if c.get("status") != "True":
+                continue
+            ctype, reason = c.get("type"), c.get("reason")
+            if ctype == "NodeProvisioningInProgress":
+                sig["in_progress"] = True
+            elif (ctype == "ProvisioningConstrained" and reason == "OutOfResources") or (
+                ctype == "ProvisioningSuspended"
+            ):
+                sig["backoff"] = True
+                m = BACKOFF_UNTIL_REGEX.search(c.get("message") or "")
+                if m:
+                    until = datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")
+                    until = until.replace(tzinfo=timezone.utc).timestamp()
+                    sig["backoff_until"] = max(sig["backoff_until"] or 0.0, until)
+    return out
+
+
+def _cpu_value(v: Any) -> float:
+    s = str(v if v is not None else 0).strip()
+    try:
+        return float(s[:-1]) / 1000.0 if s.endswith("m") else float(s)
+    except ValueError:
+        return 0.0
+
+
+def family_node_vcpus(cc_obj: Optional[Dict[str, Any]], families: List[str]) -> Dict[str, int]:
+    """vCPUs of one node per family, from the -standard-N suffix of its rule's machineType."""
+    rules = extract_priority_spec_rules(cc_obj)
+    return {
+        fam: (rules[i]["coresPerNode"] if i < len(rules) else DEFAULT_NODE_VCPUS)
+        for i, fam in enumerate(families)
+    }
+
+
+def quota_full_families(
+    quotas: List[Dict[str, Any]], node_vcpus: Dict[str, int]
+) -> Set[str]:
+    """Families whose `<family>-tier-cap` (or the class-wide cap) has less than one node's
+    vCPUs free: limit - used < vCPUs of one node of that family."""
+    by_name = {q.get("metadata", {}).get("name"): q for q in quotas}
+
+    def free(name: str) -> Optional[float]:
+        q = by_name.get(name)
+        if q is None:
+            return None
+        limit = q.get("spec", {}).get("limits", {}).get("resources", {}).get("cpu")
+        if limit is None:
+            return None
+        used = q.get("status", {}).get("used", {}).get("resources", {}).get("cpu", 0)
+        return _cpu_value(limit) - _cpu_value(used)
+
+    class_free = free(CLASS_QUOTA_NAME)
+    full: Set[str] = set()
+    for fam, vcpus in node_vcpus.items():
+        for left in (free(f"{fam}-tier-cap"), class_free):
+            if left is not None and left < vcpus:
+                full.add(fam)
+    return full
+
+
+def derive_family_blocks(
+    families: List[str],
+    status: Dict[str, Dict[str, Any]],
+    quota_full: Set[str],
+    unscheduled: Dict[str, int],
+    oldest_unscheduled: Dict[str, float],
+    prior: Dict[str, Tuple[float, str]],
+    now: float,
+    spill_after: float = SPILL_AFTER_SECONDS,
+    cooldown: float = SPILL_COOLDOWN_SECONDS,
+) -> Dict[str, Tuple[float, str]]:
+    """Decides which families are blocked: {family: (until_epoch, reason)}.
+
+    A family is blocked when it has unscheduled workers and is in an OutOfResources or
+    Suspended backoff (until the backoff expiry, or `cooldown` if it names none) or is
+    quota-full (while it stays full; re-evaluated every call, no timer). A family with a
+    NodeProvisioningInProgress condition and neither is waiting for a node, not stuck.
+    Fallback: unscheduled workers with none of those signals for `spill_after` seconds
+    block the family for `cooldown`.
+    `prior` is the previous result: once workers have spilled the family has none
+    unscheduled, so its backoff and quota blocks must outlive that.
+    """
+    out: Dict[str, Tuple[float, str]] = {}
+    for fam in families:
+        sig = status.get(fam, {})
+        waiting = unscheduled.get(fam, 0) > 0
+        old = prior.get(fam)
+        was = old[1] if old and (old[0] > now or old[1] == "quota full") else None
+        until, reason = 0.0, ""
+        if sig.get("backoff") and (waiting or was == "backoff"):
+            until = sig.get("backoff_until") or now + cooldown
+            reason = "backoff"
+        elif fam in quota_full and (waiting or was == "quota full"):
+            until, reason = float("inf"), "quota full"
+        elif old and old[1] == "timer" and old[0] > now:
+            until, reason = old
+        elif (
+            waiting
+            and not sig.get("in_progress")
+            and fam in oldest_unscheduled
+            and now - oldest_unscheduled[fam] >= spill_after
+        ):
+            until, reason = now + cooldown, "timer"
+        if until > now:
+            out[fam] = (until, reason)
+    return out
 
 
 def plan_family_spill(
@@ -232,29 +328,17 @@ def plan_family_spill(
     families: List[str],
     placed: Dict[str, int],
     unscheduled: Dict[str, int],
-    oldest_unscheduled: Dict[str, float],
-    blocked_until: Dict[str, float],
-    now: float,
-    spill_after: float = SPILL_AFTER_SECONDS,
-    cooldown: float = SPILL_COOLDOWN_SECONDS,
-) -> Tuple[Dict[str, int], Dict[str, float]]:
+    blocked: Set[str],
+) -> Dict[str, int]:
     """Splits `target` workers across per-family WorkerPools, top of the ladder first.
 
     The ComputeClass cannot fall back for a pool pinned to one machine type, so this
-    does it: a family whose workers have waited `spill_after` seconds for capacity is
-    blocked for `cooldown`, keeps only the workers it already placed, and new demand
-    goes to the next unblocked family (the last family if every one is blocked).
-    Allocations are sticky -- placed workers are never moved back up the ladder, and a
-    scale-down removes unscheduled workers first, then placed ones from the bottom up.
-    Returns (replicas per family, updated blocked_until).
+    does it: a blocked family (see derive_family_blocks) keeps only the workers it
+    already placed, and new demand goes to the next unblocked family (the last family if
+    every one is blocked). Allocations are sticky -- placed workers are never moved back
+    up the ladder, and a scale-down removes unscheduled workers first, then placed ones
+    from the bottom up. Returns replicas per family.
     """
-    blocked_until = dict(blocked_until)
-    for fam in families:
-        since = oldest_unscheduled.get(fam)
-        if since is not None and now - since >= spill_after:
-            blocked_until[fam] = max(blocked_until.get(fam, 0.0), now + cooldown)
-    blocked = {fam for fam in families if blocked_until.get(fam, 0.0) > now}
-
     alloc = {
         fam: placed.get(fam, 0) + (0 if fam in blocked else unscheduled.get(fam, 0))
         for fam in families
@@ -273,7 +357,7 @@ def plan_family_spill(
     elif excess < 0:
         dest = next((fam for fam in families if fam not in blocked), families[-1])
         alloc[dest] += -excess
-    return alloc, blocked_until
+    return alloc
 
 
 GCE_FAMILY_PREFIX_REGEX = re.compile(r"^[a-z]+\d+[a-z]*$")
@@ -1843,6 +1927,7 @@ def get_live_telemetry() -> Optional[Dict[str, Any]]:
                 "blocked": sorted(
                     fam for fam, until in st["blockedUntil"].items() if until > now
                 ),
+                "reasons": dict(st.get("reasons", {})),
             }
         return data
     except Exception as e:
@@ -1915,6 +2000,14 @@ def _adopt_cluster_target(custom_api: Any) -> None:
     logger.info(f"Adopted cluster target: {totals[rt]} workers ({rt})")
 
 
+def _block_reason(block: Tuple[float, str]) -> str:
+    until, reason = block
+    if reason == "quota full":
+        return reason
+    stamp = datetime.fromtimestamp(until, timezone.utc).strftime("%H:%M")
+    return f"{'backoff' if reason == 'backoff' else 'cooling down'} until {stamp} UTC"
+
+
 def reconcile_substrate_pools(force: bool = False) -> None:
     """Substrate mode: spreads the worker target across the active runtime's per-family
     WorkerPools (see plan_family_spill), zeroes the other runtime's pools, and keeps one
@@ -1932,23 +2025,36 @@ def reconcile_substrate_pools(force: bool = False) -> None:
         _preload_content=False,
     )
     pods = json.loads(raw.data).get("items", [])
-    raw_events = core_v1.list_namespaced_event(
-        namespace=DEMO_NAMESPACE,
-        field_selector="involvedObject.kind=Pod",
-        _preload_content=False,
-    )
-    verdicts = latest_scale_up_verdicts(json.loads(raw_events.data).get("items", []))
     now = time.time()
     pool_to_family = {pool: fam for fam, pool in rt_cfg["workerPools"].items()}
-    placed, unscheduled, oldest = summarize_worker_pods(pods, pool_to_family, verdicts, now)
-    alloc, st["blockedUntil"] = plan_family_spill(
-        demo_state.get("targetWorkers", 0),
-        rt_cfg["families"],
-        placed,
+    placed, unscheduled, oldest = summarize_worker_pods(pods, pool_to_family)
+    families = rt_cfg["families"]
+    cc_obj = custom_api.get_cluster_custom_object(
+        group="cloud.google.com", version="v1", plural="computeclasses",
+        name=rt_cfg["computeClass"],
+    )
+    quotas = custom_api.list_cluster_custom_object(
+        group="autoscaling.x-k8s.io", version="v1beta1", plural="capacityquotas"
+    ).get("items", [])
+    status = parse_ladder_status(cc_obj, families)
+    blocks = derive_family_blocks(
+        families,
+        status,
+        quota_full_families(quotas, family_node_vcpus(cc_obj, families)),
         unscheduled,
         oldest,
-        st["blockedUntil"],
+        st.get("blocks", {}),
         now,
+    )
+    st["blocks"] = blocks
+    st["blockedUntil"] = {fam: until for fam, (until, _) in blocks.items()}
+    st["reasons"] = {
+        fam: _block_reason(blocks[fam]) if fam in blocks else "waiting for node"
+        for fam in families
+        if fam in blocks or (unscheduled.get(fam) and status.get(fam, {}).get("in_progress"))
+    }
+    alloc = plan_family_spill(
+        demo_state.get("targetWorkers", 0), families, placed, unscheduled, set(blocks)
     )
     st.update({"alloc": alloc, "placed": placed, "unscheduled": unscheduled})
 
@@ -2170,6 +2276,7 @@ async def set_scale(req: ScaleRequest):
                 # pools start fresh.
                 if runtime_switched:
                     demo_state["substrate"]["blockedUntil"] = {}
+                    demo_state["substrate"]["blocks"] = {}
                 reconcile_substrate_pools(force=runtime_switched)
 
             # When runtime switched, scale down inactive runtime's Deployment and WorkerPool to 0
