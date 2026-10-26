@@ -32,22 +32,33 @@ else
   SUBSTRATE=0
 fi
 
+# kubectl ate list that warns on failure (e.g. plugin/server version mismatch) instead of
+# looking like an empty list and silently skipping the cleanup.
+ate_list() {
+  local out
+  if ! out="$(kubectl ate get "$@" 2>&1)"; then
+    echo "WARNING: 'kubectl ate get $*' failed: ${out}" >&2
+    return 0
+  fi
+  printf '%s\n' "${out}"
+}
+
 # Substrate mode: actors must go before their workers. Deleting the namespace under a
 # running actor leaves it CRASHED, so suspend, delete actors, tags, templates, then the
 # (now empty) atespace, and only then remove the WorkerPools.
 if [[ "${SUBSTRATE}" == 1 ]] && kubectl ate --help &>/dev/null \
-   && kubectl ate get atespaces 2>/dev/null | awk 'NR>1{print $1}' | grep -qx "${NAMESPACE}"; then
+   && ate_list atespaces | awk 'NR>1{print $1}' | grep -qx "${NAMESPACE}"; then
   echo "Removing Substrate actors, tags, templates and the ${NAMESPACE} atespace..."
-  for actor in $(kubectl ate get actors -a "${NAMESPACE}" 2>/dev/null | awk 'NR>1 && $4=="ACTOR_STATE_RUNNING"{print $2}'); do
+  for actor in $(ate_list actors -a "${NAMESPACE}" | awk 'NR>1 && $4=="ACTOR_STATE_RUNNING"{print $2}'); do
     kubectl ate suspend actor "${actor}" -a "${NAMESPACE}" || true
   done
-  for actor in $(kubectl ate get actors -a "${NAMESPACE}" 2>/dev/null | awk 'NR>1{print $2}'); do
+  for actor in $(ate_list actors -a "${NAMESPACE}" | awk 'NR>1{print $2}'); do
     kubectl ate delete actor "${actor}" -a "${NAMESPACE}" || true
   done
-  for tag in $(kubectl ate get tags -a "${NAMESPACE}" 2>/dev/null | awk 'NR>1{print $2}'); do
+  for tag in $(ate_list tags -a "${NAMESPACE}" | awk 'NR>1{print $2}'); do
     kubectl ate delete tag "${tag}" -a "${NAMESPACE}" || true
   done
-  for tmpl in $(kubectl ate get actor-templates -a "${NAMESPACE}" 2>/dev/null | awk 'NR>1{print $2}'); do
+  for tmpl in $(ate_list actor-templates -a "${NAMESPACE}" | awk 'NR>1{print $2}'); do
     kubectl ate delete actor-template "${tmpl}" -a "${NAMESPACE}" || true
   done
   kubectl ate delete atespace "${NAMESPACE}" || true

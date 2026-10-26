@@ -142,6 +142,8 @@ watch kubectl get nodes
 
 Once the standby nodes display `NotReady,SchedulingDisabled` (with condition `Suspended=True`), your multi-family standby pool is armed and ready for rapid S3 resume on surge.
 
+**Standby buffers work for microVM workers.** The demo defaults to 6 standby nodes, 2 each on `c4`, `n4` and `c3` (the gVisor-only families stay at 0). A microVM worker requests `ate.dev/kvm`, so the open question was whether a suspended node still offers it. It does: `atelet` starts on the node while it boots, before the buffer suspends it, and the suspended node keeps `ate.dev/kvm` in its allocatable resources, so the scheduler treats it as a valid microVM host. In one test, scaling `microvm-c4` to 25 workers put 22 of them on a resumed c4 standby node within about 25 seconds, and the other 3 waited for a replacement node (about 90 seconds). I did not run a side-by-side cold-node comparison. The dashboard only patches buffers when you change a slider, so the defaults in `substrate/03-buffers.yaml` and `app/server.py` must match.
+
 ---
 
 ### Substrate mode (optional): real Agent Substrate, one snapshot lineage per machine family
