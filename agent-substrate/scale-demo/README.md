@@ -156,6 +156,16 @@ Then:
 ./install.sh --mode=substrate --bucket=<substrate-snapshot-bucket>
 ```
 
+`--bucket` names the bucket Substrate stores snapshots in. If it does not exist, `install.sh` creates it in the cluster's project and region and grants `ate-api-server` and `atelet` access (set `BUCKET_PROJECT` / `BUCKET_LOCATION` to override). An existing bucket, such as the one the substrate-gke installer made, is used as is.
+
+**Wait for the golden snapshots.** Each template builds its golden snapshot only once its pool has workers, so the `GOLDEN TAG` column stays empty until your first scale-up (the dashboard's smallest target is 25). Watch it with:
+
+```bash
+kubectl ate get actor-templates -a agent-substrate-demo -w
+```
+
+A template is ready when `GOLDEN TAG` is filled in. A failed build shows in `ERROR` (`kubectl ate get actor-template <name> -a agent-substrate-demo -o yaml` has the reason under `status.goldenSnapshotStatus`). Create actors only after the tag appears.
+
 What it applies (from [`substrate/`](./substrate/)):
 
 1. **Two ComputeClasses**: `agent-substrate-microvm` (`c4` &rarr; `n4` &rarr; `c3`, nested virtualization on) and `agent-substrate-gvisor` (`c4` &rarr; `c4d` &rarr; `n4` &rarr; `n4d` &rarr; `c3` &rarr; `c3d`), all `-standard-8`. The class stamps `ate.dev/substrate-version` on its nodes through `nodeLabels`, so Substrate's `atelet` DaemonSet lands on them without the workers selecting that label.

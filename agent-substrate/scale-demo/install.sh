@@ -97,6 +97,46 @@ pin_digest() {
   echo "${image}@${digest}"
 }
 
+# Substrate persists every golden snapshot to this bucket. A missing bucket makes the
+# golden build fail with "GoldenActorCrashed", so create it (in the cluster's project and
+# region, with Substrate's service accounts granted access) when it does not exist.
+# An existing bucket is used as is.
+ensure_bucket() {
+  if gcloud storage buckets describe "gs://${BUCKET}" &>/dev/null; then
+    echo "Snapshot bucket gs://${BUCKET} exists; using it as is."
+    return
+  fi
+  # GKE kubeconfig contexts are named gke_<project>_<location>_<cluster>.
+  local ctx project="" location="" number pool sa role
+  ctx="$(kubectl config current-context)"
+  if [[ "${ctx}" == gke_*_*_* ]]; then
+    IFS=_ read -r _ project location _ <<<"${ctx}"
+  fi
+  project="${BUCKET_PROJECT:-${project:-$(gcloud config get-value project 2>/dev/null)}}"
+  location="${BUCKET_LOCATION:-${location}}"
+  if [[ -z "${project}" || -z "${location}" ]]; then
+    echo "Error: gs://${BUCKET} does not exist and the project/region could not be derived from the kubectl context." >&2
+    echo "Create it yourself, or set BUCKET_PROJECT and BUCKET_LOCATION (for example us-central1) and rerun." >&2
+    exit 1
+  fi
+  # A zonal cluster (us-central1-a) needs the region for the bucket.
+  [[ "${location}" =~ ^[a-z]+-[a-z]+[0-9]+-[a-z]$ ]] && location="${location%-*}"
+  echo "Creating snapshot bucket gs://${BUCKET} in ${project} (${location})..."
+  gcloud storage buckets create "gs://${BUCKET}" --project="${project}" \
+    --location="${location}" --uniform-bucket-level-access || {
+    echo "Error: could not create gs://${BUCKET} (the name may be taken, or you lack storage.buckets.create on ${project})." >&2
+    exit 1
+  }
+  number="$(gcloud projects describe "${project}" --format='value(projectNumber)')"
+  pool="projects/${number}/locations/global/workloadIdentityPools/${project}.svc.id.goog"
+  for sa in ate-api-server atelet; do
+    for role in roles/storage.objectAdmin roles/storage.bucketViewer; do
+      gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" --role="${role}" \
+        --member="principal://iam.googleapis.com/${pool}/subject/ns/ate-system/sa/${sa}" >/dev/null
+    done
+  done
+}
+
 install_substrate() {
   echo "Preflight checks..."
   if ! kubectl ate --help &>/dev/null; then
@@ -119,6 +159,8 @@ install_substrate() {
     echo "Error: pass --bucket=NAME (or set SUBSTRATE_BUCKET) -- the Substrate snapshot bucket." >&2
     exit 1
   fi
+
+  ensure_bucket
 
   # atelet only runs on nodes carrying ate.dev/substrate-version=<version>. Read the
   # version off its DaemonSet so the ComputeClass stamps the matching label.
@@ -224,4 +266,10 @@ echo "Installation complete!"
 echo "To access the web dashboard locally:"
 echo "  kubectl port-forward svc/ccc-agents-dashboard 8881:8881 -n ${NAMESPACE}"
 echo "Then open: http://localhost:8881"
+if [[ "${MODE}" == "substrate" ]]; then
+  echo ""
+  echo "Substrate mode: golden snapshots build on the first scale-up. Watch them with:"
+  echo "  kubectl ate get actor-templates -a ${NAMESPACE} -w"
+  echo "Create actors once GOLDEN TAG is filled in."
+fi
 echo "=================================================================="
