@@ -21,7 +21,7 @@ Versions and setup steps change, so treat the linked GKE pages as the source of 
 | Dependency | Needed for | Minimum GKE | How to set it up |
 |---|---|---|---|
 | GKE Standard cluster (Autopilot isn't supported), Workload Identity Federation, beta APIs `PodCertificateRequest` and `ClusterTrustBundle` | Agent Substrate | 1.37 (1.36 with the beta APIs enabled at cluster creation) | [About Agent Substrate on GKE](https://docs.cloud.google.com/kubernetes-engine/ai-ml/about-agent-substrate) |
-| Agent Substrate, its snapshot bucket, and the `kubectl ate` plugin | Everything | — | [Install Agent Substrate on GKE](https://docs.cloud.google.com/kubernetes-engine/ai-ml/install-overview-substrate) ([substrate-gke](https://github.com/ai-on-gke/substrate-gke) installer). The `kubectl ate` plugin is not included: build it with `go install ./cmd/kubectl-ate` from a clone of [agent-substrate/substrate](https://github.com/agent-substrate/substrate) at the tag matching your cluster (`v0.4.0` for `v0.4.0-gke.0`; a newer plugin fails with protobuf errors; Go 1.27+) |
+| Agent Substrate and the `kubectl ate` plugin | Everything | — | [Install Agent Substrate on GKE](https://docs.cloud.google.com/kubernetes-engine/ai-ml/install-overview-substrate) ([substrate-gke](https://github.com/ai-on-gke/substrate-gke) installer). The `kubectl ate` plugin is not included: build it with `go install ./cmd/kubectl-ate` from a clone of [agent-substrate/substrate](https://github.com/agent-substrate/substrate) at the tag matching your cluster (`v0.4.0` for `v0.4.0-gke.0`; a newer plugin fails with protobuf errors; Go 1.27+) |
 | microVM runtime dependencies (the `microvm` SandboxConfig) | microVM lineages | — | The microVM section of [Install Agent Substrate on GKE](https://docs.cloud.google.com/kubernetes-engine/ai-ml/install-overview-substrate) |
 | Nested virtualization through a ComputeClass | microVM classes | 1.37.0-gke.4713000 | [Use nested VMs with GKE clusters](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/nested-virtualization). Pick series with nested virtualization from the [machine series comparison](https://docs.cloud.google.com/compute/docs/machine-resource). |
 | Node pool auto-creation by ComputeClasses | All classes | 1.33.3-gke.1136000 (earlier versions also need cluster-level node auto-provisioning) | [About custom ComputeClasses](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/about-custom-compute-classes) |
@@ -185,6 +185,9 @@ Then:
 # 0. Match the label in the class file to your install, and pick the snapshot bucket
 kubectl -n ate-system get ds -o jsonpath='{..nodeSelector.ate\.dev/substrate-version}'; echo
 BUCKET=<your-substrate-snapshot-bucket>
+# Substrate stores golden snapshots here. If the bucket is missing, templates never get a golden
+# snapshot and nothing errors loudly. Create it in the cluster's region (scale-demo/install.sh does this for you):
+gcloud storage buckets describe "gs://${BUCKET}" >/dev/null 2>&1 || gcloud storage buckets create "gs://${BUCKET}" --location=<cluster-region>
 
 # 1. Classes, atespace, pools, seeds
 kubectl apply -f agent-substrate-class.yaml
