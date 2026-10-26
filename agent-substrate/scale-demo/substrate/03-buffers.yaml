@@ -453,7 +453,7 @@ metadata:
 spec:
   podTemplateRef:
     name: agent-microvm-buffer-c4
-  replicas: 0
+  replicas: 2
   provisioningStrategy: "buffer.gke.io/standby-capacity"
 ---
 apiVersion: autoscaling.x-k8s.io/v1beta1
@@ -489,7 +489,7 @@ metadata:
 spec:
   podTemplateRef:
     name: agent-microvm-buffer-n4
-  replicas: 0
+  replicas: 2
   provisioningStrategy: "buffer.gke.io/standby-capacity"
 ---
 apiVersion: autoscaling.x-k8s.io/v1beta1
@@ -525,7 +525,7 @@ metadata:
 spec:
   podTemplateRef:
     name: agent-microvm-buffer-c3
-  replicas: 0
+  replicas: 2
   provisioningStrategy: "buffer.gke.io/standby-capacity"
 ---
 apiVersion: autoscaling.x-k8s.io/v1beta1

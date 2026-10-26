@@ -113,7 +113,6 @@ SUBSTRATE_RECONCILE_SECONDS = 10.0
 if DEMO_MODE == "substrate":
     demo_state["actorsPerWorker"] = 1
     demo_state["activeBufferReplicas"] = 1
-    demo_state["standbyReplicas"] = 0
     demo_state["quotas"] = {"agent-substrate-class-cap": 720}
     demo_state["quotas"].update(
         {f"{fam}-tier-cap": (24 if fam == "c3" else 96) for fam in SUBSTRATE_ALL_FAMILIES}
