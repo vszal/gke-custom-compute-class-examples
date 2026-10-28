@@ -14,10 +14,12 @@ spec:
   - name: l4-container-1
     image: nvidia/cuda:11.0.3-runtime-ubuntu20.04
     command: ["/bin/bash", "-c", "--"]
+    command: ["/bin"]
     args: ["while true; do sleep 600; done;"]
     resources:
       limits:
         nvidia.com/gpu: 1
+        nvidia.com/gpu: 2
         cpu: "18"
         memory: "18Gi"
       requests:
